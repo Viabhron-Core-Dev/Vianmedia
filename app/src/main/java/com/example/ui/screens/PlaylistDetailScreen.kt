@@ -8,6 +8,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -16,6 +17,8 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -170,7 +173,7 @@ fun PlaylistDetailScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(playlistItems, key = { it.id }) { item ->
+                itemsIndexed(playlistItems, key = { _, item -> item.id }) { index, item ->
                     val isSelected = selectedItems.contains(item)
                     Card(
                         modifier = Modifier
@@ -208,6 +211,43 @@ fun PlaylistDetailScreen(
                                 maxLines = 2,
                                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            
+                            if (!isMultiSelectMode) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
+                                    IconButton(
+                                        onClick = {
+                                            if (index > 0) {
+                                                val prev = playlistItems[index - 1]
+                                                val tempTimestamp = item.timestamp
+                                                coroutineScope.launch {
+                                                    repository.updatePlaylistItem(item.copy(timestamp = prev.timestamp))
+                                                    repository.updatePlaylistItem(prev.copy(timestamp = tempTimestamp))
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.size(36.dp),
+                                        enabled = index > 0
+                                    ) {
+                                        Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move Up")
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            if (index < playlistItems.size - 1) {
+                                                val next = playlistItems[index + 1]
+                                                val tempTimestamp = item.timestamp
+                                                coroutineScope.launch {
+                                                    repository.updatePlaylistItem(item.copy(timestamp = next.timestamp))
+                                                    repository.updatePlaylistItem(next.copy(timestamp = tempTimestamp))
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.size(36.dp),
+                                        enabled = index < playlistItems.size - 1
+                                    ) {
+                                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move Down")
+                                    }
+                                }
+                            }
                         }
                     }
                 }

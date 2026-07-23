@@ -308,12 +308,23 @@ fun PlayerScreen(
     val playerViewRef = remember { mutableStateOf<PlayerView?>(null) }
     val speeds = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
 
-    LaunchedEffect(Unit) {
+    var isInPipMode by remember { 
+        val activity = context.findActivity() as? androidx.activity.ComponentActivity
+        val isPipInitially = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) activity?.isInPictureInPictureMode == true else false
+        mutableStateOf(isPipInitially) 
+    }
+
+    LaunchedEffect(showControls, isInPipMode) {
         val window = context.findActivity()?.window
         if (window != null) {
             val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
             insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            if (showControls && !isInPipMode) {
+                insetsController.show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+                insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
+            } else {
+                insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            }
         }
     }
 
@@ -651,12 +662,6 @@ fun PlayerScreen(
         }
     }
 
-    var isInPipMode by remember { 
-        val activity = context.findActivity() as? androidx.activity.ComponentActivity
-        val isPipInitially = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) activity?.isInPictureInPictureMode == true else false
-        mutableStateOf(isPipInitially) 
-    }
-
     DisposableEffect(lifecycleOwner) {
         val activity = context.findActivity() as? androidx.activity.ComponentActivity
         val pipListener = androidx.core.util.Consumer<androidx.core.app.PictureInPictureModeChangedInfo> { info ->
@@ -962,11 +967,11 @@ fun PlayerScreen(
             visible = !showControls && !isInPipMode && !isLocked,
             enter = androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(200)),
             exit = androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(200)),
-            modifier = Modifier.align(Alignment.TopEnd).windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.systemBarsIgnoringVisibility.union(androidx.compose.foundation.layout.WindowInsets.displayCutout).only(androidx.compose.foundation.layout.WindowInsetsSides.Horizontal + androidx.compose.foundation.layout.WindowInsetsSides.Top)).padding(top = 16.dp)
+            modifier = Modifier.align(Alignment.TopEnd).windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.displayCutout.only(androidx.compose.foundation.layout.WindowInsetsSides.Horizontal + androidx.compose.foundation.layout.WindowInsetsSides.Top))
         ) {
             Box(
                 modifier = Modifier
-                    .padding(end = 32.dp)
+                    .padding(end = 16.dp, top = 8.dp)
             ) {
                 var timeStr by remember { mutableStateOf("") }
                 var batteryPct by remember { mutableStateOf(100) }
