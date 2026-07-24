@@ -971,7 +971,7 @@ fun PlayerScreen(
         ) {
             Box(
                 modifier = Modifier
-                    .padding(end = 16.dp, top = 8.dp)
+                    .padding(end = 16.dp)
             ) {
                 var timeStr by remember { mutableStateOf("") }
                 var batteryPct by remember { mutableStateOf(100) }

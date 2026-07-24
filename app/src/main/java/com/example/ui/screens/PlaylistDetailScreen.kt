@@ -16,6 +16,9 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -213,40 +216,41 @@ fun PlaylistDetailScreen(
                             )
                             
                             if (!isMultiSelectMode) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
-                                    IconButton(
-                                        onClick = {
-                                            if (index > 0) {
-                                                val prev = playlistItems[index - 1]
-                                                val tempTimestamp = item.timestamp
-                                                coroutineScope.launch {
-                                                    repository.updatePlaylistItem(item.copy(timestamp = prev.timestamp))
-                                                    repository.updatePlaylistItem(prev.copy(timestamp = tempTimestamp))
+                                var offsetY by remember { mutableFloatStateOf(0f) }
+                                Icon(
+                                    imageVector = Icons.Filled.DragHandle,
+                                    contentDescription = "Reorder",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .padding(4.dp)
+                                        .pointerInput(Unit) {
+                                            detectDragGestures(
+                                                onDragEnd = { offsetY = 0f },
+                                                onDragCancel = { offsetY = 0f }
+                                            ) { change, dragAmount ->
+                                                change.consume()
+                                                offsetY += dragAmount.y
+                                                if (offsetY > 150f && index < playlistItems.size - 1) {
+                                                    val next = playlistItems[index + 1]
+                                                    val tempTimestamp = item.timestamp
+                                                    coroutineScope.launch {
+                                                        repository.updatePlaylistItem(item.copy(timestamp = next.timestamp))
+                                                        repository.updatePlaylistItem(next.copy(timestamp = tempTimestamp))
+                                                    }
+                                                    offsetY = 0f
+                                                } else if (offsetY < -150f && index > 0) {
+                                                    val prev = playlistItems[index - 1]
+                                                    val tempTimestamp = item.timestamp
+                                                    coroutineScope.launch {
+                                                        repository.updatePlaylistItem(item.copy(timestamp = prev.timestamp))
+                                                        repository.updatePlaylistItem(prev.copy(timestamp = tempTimestamp))
+                                                    }
+                                                    offsetY = 0f
                                                 }
                                             }
-                                        },
-                                        modifier = Modifier.size(36.dp),
-                                        enabled = index > 0
-                                    ) {
-                                        Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move Up")
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            if (index < playlistItems.size - 1) {
-                                                val next = playlistItems[index + 1]
-                                                val tempTimestamp = item.timestamp
-                                                coroutineScope.launch {
-                                                    repository.updatePlaylistItem(item.copy(timestamp = next.timestamp))
-                                                    repository.updatePlaylistItem(next.copy(timestamp = tempTimestamp))
-                                                }
-                                            }
-                                        },
-                                        modifier = Modifier.size(36.dp),
-                                        enabled = index < playlistItems.size - 1
-                                    ) {
-                                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move Down")
-                                    }
-                                }
+                                        }
+                                )
                             }
                         }
                     }

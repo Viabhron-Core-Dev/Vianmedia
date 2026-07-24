@@ -3,6 +3,7 @@ package com.example.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -29,7 +30,9 @@ fun MiniPlayerOverlay(
     onClose: () -> Unit,
     onMinimize: () -> Unit,
     onDrag: (Float, Float) -> Unit,
-    onResize: (Float, Float) -> Unit
+    onResize: (Float, Float) -> Unit,
+    isMinimizedExternal: Boolean = false,
+    onMinimizeChange: (Boolean) -> Unit = {}
 ) {
     var isPlaying by remember { mutableStateOf(player?.isPlaying == true) }
     var currentPosition by remember { mutableLongStateOf(player?.currentPosition ?: 0L) }
@@ -85,64 +88,148 @@ fun MiniPlayerOverlay(
         }
     }
 
+    if (isMinimizedExternal) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer)
+                .pointerInput(Unit) {
+                    detectDragGesturesAfterLongPress(
+                        onDrag = { change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: androidx.compose.ui.geometry.Offset ->
+                            change.consume()
+                            onDrag(dragAmount.x, dragAmount.y)
+                        }
+                    )
+                }
+                .clickable { onMinimizeChange(false) },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_play_launcher_foreground), contentDescription = "Unfold", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(32.dp))
+        }
+        return
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(12.dp))
-            .background(Color.Black.copy(alpha = 0.9f))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Player Video / Visualizer space
-            Box(
+            // Top Title bar for moving, PIP and Main Player buttons
+            Row(
                 modifier = Modifier
-                    .weight(if (isExpanded) 1f else 3f)
                     .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.primaryContainer)
                     .pointerInput(Unit) {
-                        detectDragGestures { change, dragAmount ->
-                            change.consume()
-                            onDrag(dragAmount.x, dragAmount.y)
-                        }
+                        detectDragGesturesAfterLongPress(
+                            onDrag = { change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: androidx.compose.ui.geometry.Offset ->
+                                change.consume()
+                                onDrag(dragAmount.x, dragAmount.y)
+                            }
+                        )
                     }
-                    .background(Color.Black)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                androidx.compose.ui.viewinterop.AndroidView(
-                    factory = { context ->
-                        androidx.media3.ui.PlayerView(context).apply {
-                            this.player = player
-                            useController = false
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
+                Icon(Icons.Filled.DragHandle, contentDescription = "Drag to move", tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
                 )
+                Row {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    IconButton(onClick = {
+                        val appOps = context.getSystemService(android.content.Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+                        val mode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                            appOps.unsafeCheckOpNoThrow(android.app.AppOpsManager.OPSTR_PICTURE_IN_PICTURE, android.os.Process.myUid(), context.packageName)
+                        } else {
+                            appOps.checkOpNoThrow(android.app.AppOpsManager.OPSTR_PICTURE_IN_PICTURE, android.os.Process.myUid(), context.packageName)
+                        }
+                        if (mode == android.app.AppOpsManager.MODE_ALLOWED) {
+                            val activity = context as? android.app.Activity ?: (context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity
+                            activity?.enterPictureInPictureMode(android.app.PictureInPictureParams.Builder().build())
+                        } else {
+                            android.widget.Toast.makeText(context, "PiP permission not granted", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }, modifier = Modifier.size(32.dp)) {
+                        Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_pip), contentDescription = "PIP", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
+                    }
+                    IconButton(onClick = {
+                        val intent = android.content.Intent(context, com.example.MainActivity::class.java).apply {
+                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        }
+                        context.startActivity(intent)
+                        onClose()
+                    }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Filled.OpenInFull, contentDescription = "Main Player", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
+                    }
+                }
             }
 
             // Controls
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                
                 // Progress bar
                 val progress = if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
-                LinearProgressIndicator(
-                    progress = { progress },
+                Slider(
+                    value = progress,
+                    onValueChange = { newVal ->
+                        val newPos = (newVal * duration).toLong()
+                        player?.seekTo(newPos)
+                        currentPosition = newPos
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.DarkGray
+                        .height(24.dp)
+                        .padding(horizontal = 4.dp),
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                        inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    )
                 )
                 
+                // Playback controls row
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { player?.seekToPreviousMediaItem() }) {
+                        Icon(Icons.Filled.SkipPrevious, "Previous", tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                    IconButton(onClick = { player?.seekTo(player.currentPosition - 5000) }) {
+                        Icon(Icons.Filled.FastRewind, "-5s", tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                    IconButton(onClick = {
+                        if (isPlaying) player?.pause() else player?.play()
+                    }) {
+                        Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play/Pause", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(36.dp))
+                    }
+                    IconButton(onClick = { player?.seekTo(player.currentPosition + 5000) }) {
+                        Icon(Icons.Filled.FastForward, "+5s", tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                    IconButton(onClick = { player?.seekToNextMediaItem() }) {
+                        Icon(Icons.Filled.SkipNext, "Next", tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                    IconButton(onClick = { player?.stop(); player?.clearMediaItems(); onClose() }) {
+                        Icon(Icons.Filled.Stop, "Stop", tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+
+                // Second row: Shuffle, Loop, Refresh, Toggle Playlist
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -154,14 +241,7 @@ fun MiniPlayerOverlay(
                         Icon(
                             imageVector = Icons.Filled.Shuffle,
                             contentDescription = "Shuffle",
-                            tint = if (shuffleMode) Color(0xFF2196F3) else Color.White
-                        )
-                    }
-                    IconButton(onClick = { isReversed = !isReversed }) {
-                        Icon(
-                            imageVector = Icons.Filled.Sort,
-                            contentDescription = "Sort",
-                            tint = if (isReversed) Color(0xFF2196F3) else Color.White
+                            tint = if (shuffleMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                     }
                     IconButton(onClick = { 
@@ -176,61 +256,103 @@ fun MiniPlayerOverlay(
                         Icon(
                             imageVector = if (loopMode == Player.REPEAT_MODE_ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
                             contentDescription = "Loop",
-                            tint = if (loopMode != Player.REPEAT_MODE_OFF) Color(0xFF2196F3) else Color.White
+                            tint = if (loopMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                     }
-                    IconButton(onClick = { player?.seekToPreviousMediaItem() }) {
-                        Icon(Icons.Filled.SkipPrevious, "Previous", tint = Color.White)
-                    }
-                    IconButton(onClick = {
-                        if (isPlaying) player?.pause() else player?.play()
-                    }) {
-                        Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play/Pause", tint = Color.White, modifier = Modifier.size(36.dp))
-                    }
-                    IconButton(onClick = { player?.seekToNextMediaItem() }) {
-                        Icon(Icons.Filled.SkipNext, "Next", tint = Color.White)
+                    IconButton(onClick = { /* Refresh playlist logic */ }) {
+                        Icon(Icons.Filled.Refresh, "Refresh", tint = MaterialTheme.colorScheme.onSurface)
                     }
                     IconButton(onClick = { isExpanded = !isExpanded }) {
-                        Icon(if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, "Toggle Playlist", tint = Color.White)
+                        Icon(if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, "Toggle Playlist", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 }
             }
             
             if (isExpanded) {
-                // The playlist view
-                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Now Playing", style = MaterialTheme.typography.titleSmall, color = Color.White)
-                }
-                val displayList = if (isReversed) {
-                    playlist.mapIndexed { index, item -> Pair(index, item) }.reversed()
-                } else {
-                    playlist.mapIndexed { index, item -> Pair(index, item) }
-                }
+                var explorerMode by remember { mutableStateOf("current") }
                 
+                // The playlist view header
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
+                    if (explorerMode != "root") {
+                        IconButton(onClick = { explorerMode = "root" }) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                    Text(
+                        text = when (explorerMode) {
+                            "root" -> "Library"
+                            "current" -> "Now Playing"
+                            "folders" -> "Folders"
+                            "playlists" -> "Saved Playlists"
+                            else -> "Library"
+                        }, 
+                        style = MaterialTheme.typography.titleSmall, 
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
                 LazyColumn(
                     modifier = Modifier
                         .weight(2f)
                         .fillMaxWidth()
                 ) {
-                    items(displayList) { pair ->
-                        val originalIndex = pair.first
-                        val item = pair.second
-                        val isSelected = originalIndex == currentIndex
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { player?.seekToDefaultPosition(originalIndex) }
-                                .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = item.mediaMetadata.title?.toString() ?: item.mediaId,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else Color.White,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                    if (explorerMode == "root") {
+                        val options = listOf("Current", "Folder List", "Playlists")
+                        val icons = listOf(Icons.Filled.PlayCircle, Icons.Filled.Folder, Icons.Filled.PlaylistPlay)
+                        items(options.size) { index ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { 
+                                        explorerMode = when(index) {
+                                            0 -> "current"
+                                            1 -> "folders"
+                                            else -> "playlists"
+                                        }
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(icons[index], contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(end = 16.dp))
+                                Text(
+                                    text = options[index],
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    } else if (explorerMode == "current") {
+                        val displayList = if (isReversed) {
+                            playlist.mapIndexed { index, item -> Pair(index, item) }.reversed()
+                        } else {
+                            playlist.mapIndexed { index, item -> Pair(index, item) }
+                        }
+                        items(displayList) { pair ->
+                            val originalIndex = pair.first
+                            val item = pair.second
+                            val isSelected = originalIndex == currentIndex
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { player?.seekToDefaultPosition(originalIndex) }
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = item.mediaMetadata.title?.toString() ?: item.mediaId,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    } else {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                Text("Feature coming soon", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                 }
@@ -242,28 +364,28 @@ fun MiniPlayerOverlay(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(8.dp)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), RoundedCornerShape(16.dp)),
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f), RoundedCornerShape(16.dp)),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onMinimize, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Filled.Remove, "Minimize", modifier = Modifier.size(20.dp))
-            }
             IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Filled.Close, "Close completely", modifier = Modifier.size(20.dp))
+                Icon(Icons.Filled.Close, "Close completely", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            }
+            IconButton(onClick = { onMinimizeChange(true) }, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Filled.Remove, "Minimize", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
             }
             Box(
                 modifier = Modifier
                     .size(32.dp)
                     .pointerInput(Unit) {
-                        detectDragGestures { change, dragAmount ->
+                        detectDragGestures { change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: androidx.compose.ui.geometry.Offset ->
                             change.consume()
                             onResize(dragAmount.x, dragAmount.y)
                         }
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.ZoomOutMap, "Resize", modifier = Modifier.size(20.dp))
+                Icon(Icons.Filled.ZoomOutMap, "Resize", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
             }
         }
     }

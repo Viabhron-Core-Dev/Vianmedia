@@ -1,6 +1,8 @@
 package com.example.service
 
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.common.MediaItem
@@ -292,6 +294,29 @@ class PlaybackService : MediaSessionService(), LifecycleOwner, ViewModelStoreOwn
         val prefs = getSharedPreferences("MiniPlayerPrefs", android.content.Context.MODE_PRIVATE)
 
         cv.setContent {
+            var isMinimized by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+            androidx.compose.runtime.DisposableEffect(Unit) {
+                val receiver = object : android.content.BroadcastReceiver() {
+                    override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
+                        if (intent.action == android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS) {
+                            isMinimized = true
+                            val lp = layoutParams
+                            if (lp != null) {
+                                lp.width = WindowManager.LayoutParams.WRAP_CONTENT
+                                lp.height = WindowManager.LayoutParams.WRAP_CONTENT
+                                windowManager.updateViewLayout(cv, lp)
+                            }
+                        }
+                    }
+                }
+                val filter = android.content.IntentFilter(android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
+                registerReceiver(receiver, filter)
+                onDispose {
+                    unregisterReceiver(receiver)
+                }
+            }
+
             com.example.ui.components.MiniPlayerOverlay(
                 player = com.example.service.PlayerManager.exoPlayer,
                 onClose = {
@@ -320,6 +345,22 @@ class PlaybackService : MediaSessionService(), LifecycleOwner, ViewModelStoreOwn
                         lp.height = (lp.height + dh.toInt()).coerceAtLeast(400)
                         windowManager.updateViewLayout(cv, lp)
                         prefs.edit().putInt("width", lp.width).putInt("height", lp.height).apply()
+                    }
+                },
+                isMinimizedExternal = isMinimized,
+                onMinimizeChange = { minimized ->
+                    isMinimized = minimized
+                    val lp = layoutParams
+                    if (lp != null) {
+                        if (minimized) {
+                            lp.width = WindowManager.LayoutParams.WRAP_CONTENT
+                            lp.height = WindowManager.LayoutParams.WRAP_CONTENT
+                        } else {
+                            val metrics = resources.displayMetrics
+                            lp.width = prefs.getInt("width", (300 * metrics.density).toInt())
+                            lp.height = prefs.getInt("height", (200 * metrics.density).toInt())
+                        }
+                        windowManager.updateViewLayout(cv, lp)
                     }
                 }
             )
