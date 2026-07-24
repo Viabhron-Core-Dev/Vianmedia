@@ -320,9 +320,11 @@ fun PlayerScreen(
             val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
             insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             if (showControls && !isInPipMode) {
+                window.statusBarColor = android.graphics.Color.BLACK
                 insetsController.show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
                 insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
             } else {
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
                 insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             }
         }
@@ -333,6 +335,7 @@ fun PlayerScreen(
             context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
             val window = context.findActivity()?.window
             if (window != null) {
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
                 val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
                 insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             }

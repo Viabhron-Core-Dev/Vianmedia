@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.material.icons.filled.DragHandle
@@ -53,6 +55,10 @@ fun PlaylistDetailScreen(
 
     val playlist by repository.getPlaylistById(playlistId).collectAsStateWithLifecycle(initialValue = null)
     val playlistItems by repository.getItemsForPlaylist(playlistId).collectAsStateWithLifecycle(initialValue = emptyList())
+    var localPlaylistItems by remember(playlistItems) { mutableStateOf(playlistItems) }
+    
+    var draggedItemIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
 
     val selectedItems = remember { mutableStateListOf<PlaylistItem>() }
     val isMultiSelectMode = selectedItems.isNotEmpty()
@@ -85,7 +91,7 @@ fun PlaylistDetailScreen(
             )
         },
         floatingActionButton = {
-            if (!isMultiSelectMode && playlistItems.isNotEmpty()) {
+            if (!isMultiSelectMode && localPlaylistItems.isNotEmpty()) {
                 Box(
                     modifier = Modifier
                         .size(56.dp)
@@ -93,7 +99,7 @@ fun PlaylistDetailScreen(
                         .background(MaterialTheme.colorScheme.primaryContainer)
                         .combinedClickable(
                             onClick = {
-                                val first = playlistItems.first()
+                                val first = localPlaylistItems.first()
                                 onNavigateToPlayer(first.mediaUri)
                             },
                             onLongClick = {
@@ -102,7 +108,7 @@ fun PlaylistDetailScreen(
                                 val controllerFuture = androidx.media3.session.MediaController.Builder(context, sessionToken).buildAsync()
                                 controllerFuture.addListener({
                                     val controller = controllerFuture.get()
-                                    val items = playlistItems.map { androidx.media3.common.MediaItem.Builder().setMediaId(it.mediaUri).build() }
+                                    val items = localPlaylistItems.map { androidx.media3.common.MediaItem.Builder().setMediaId(it.mediaUri).build() }
                                     controller.setMediaItems(items)
                                     controller.prepare()
                                     controller.play()
@@ -125,10 +131,10 @@ fun PlaylistDetailScreen(
                     Spacer(modifier = Modifier.weight(1f))
                     if (selectedItems.size == 1) {
                         val selected = selectedItems.first()
-                        val index = playlistItems.indexOf(selected)
+                        val index = localPlaylistItems.indexOf(selected)
                         if (index > 0) {
                             IconButton(onClick = {
-                                val prev = playlistItems[index - 1]
+                                val prev = localPlaylistItems[index - 1]
                                 val tempTimestamp = selected.timestamp
                                 coroutineScope.launch {
                                     repository.updatePlaylistItem(selected.copy(timestamp = prev.timestamp))
@@ -139,9 +145,9 @@ fun PlaylistDetailScreen(
                                 Icon(Icons.Filled.ArrowUpward, contentDescription = "Move Up")
                             }
                         }
-                        if (index < playlistItems.size - 1) {
+                        if (index < localPlaylistItems.size - 1) {
                             IconButton(onClick = {
-                                val next = playlistItems[index + 1]
+                                val next = localPlaylistItems[index + 1]
                                 val tempTimestamp = selected.timestamp
                                 coroutineScope.launch {
                                     repository.updatePlaylistItem(selected.copy(timestamp = next.timestamp))
@@ -166,7 +172,7 @@ fun PlaylistDetailScreen(
             }
         }
     ) { innerPadding ->
-        if (playlistItems.isEmpty()) {
+        if (localPlaylistItems.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Text("No items in this playlist", style = MaterialTheme.typography.bodyLarge)
             }
@@ -176,11 +182,17 @@ fun PlaylistDetailScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                itemsIndexed(playlistItems, key = { _, item -> item.id }) { index, item ->
+                itemsIndexed(localPlaylistItems, key = { _, item -> item.id }) { index, item ->
                     val isSelected = selectedItems.contains(item)
+                    val isDragging = draggedItemIndex == index
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .zIndex(if (isDragging) 1f else 0f)
+                            .graphicsLayer {
+                                translationY = if (isDragging) dragOffset else 0f
+                            }
+                            .animateItem()
                             .clip(RoundedCornerShape(8.dp))
                             .combinedClickable(
                                 onClick = {
@@ -216,7 +228,6 @@ fun PlaylistDetailScreen(
                             )
                             
                             if (!isMultiSelectMode) {
-                                var offsetY by remember { mutableFloatStateOf(0f) }
                                 Icon(
                                     imageVector = Icons.Filled.DragHandle,
                                     contentDescription = "Reorder",
@@ -226,27 +237,52 @@ fun PlaylistDetailScreen(
                                         .padding(4.dp)
                                         .pointerInput(Unit) {
                                             detectDragGestures(
-                                                onDragEnd = { offsetY = 0f },
-                                                onDragCancel = { offsetY = 0f }
+                                                onDragStart = {
+                                                    draggedItemIndex = index
+                                                    dragOffset = 0f
+                                                },
+                                                onDragEnd = {
+                                                    draggedItemIndex = null
+                                                    dragOffset = 0f
+                                                    val newTimestamps = playlistItems.map { it.timestamp }
+                                                    coroutineScope.launch {
+                                                        localPlaylistItems.forEachIndexed { i, localItem ->
+                                                            if (localItem.timestamp != newTimestamps[i]) {
+                                                                repository.updatePlaylistItem(localItem.copy(timestamp = newTimestamps[i]))
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                onDragCancel = {
+                                                    draggedItemIndex = null
+                                                    dragOffset = 0f
+                                                    localPlaylistItems = playlistItems
+                                                }
                                             ) { change, dragAmount ->
                                                 change.consume()
-                                                offsetY += dragAmount.y
-                                                if (offsetY > 150f && index < playlistItems.size - 1) {
-                                                    val next = playlistItems[index + 1]
-                                                    val tempTimestamp = item.timestamp
-                                                    coroutineScope.launch {
-                                                        repository.updatePlaylistItem(item.copy(timestamp = next.timestamp))
-                                                        repository.updatePlaylistItem(next.copy(timestamp = tempTimestamp))
-                                                    }
-                                                    offsetY = 0f
-                                                } else if (offsetY < -150f && index > 0) {
-                                                    val prev = playlistItems[index - 1]
-                                                    val tempTimestamp = item.timestamp
-                                                    coroutineScope.launch {
-                                                        repository.updatePlaylistItem(item.copy(timestamp = prev.timestamp))
-                                                        repository.updatePlaylistItem(prev.copy(timestamp = tempTimestamp))
-                                                    }
-                                                    offsetY = 0f
+                                                dragOffset += dragAmount.y
+                                                
+                                                val threshold = 150f
+                                                if (dragOffset > threshold && draggedItemIndex!! < localPlaylistItems.size - 1) {
+                                                    val currentI = draggedItemIndex!!
+                                                    val nextI = currentI + 1
+                                                    val list = localPlaylistItems.toMutableList()
+                                                    val temp = list[currentI]
+                                                    list[currentI] = list[nextI]
+                                                    list[nextI] = temp
+                                                    localPlaylistItems = list
+                                                    draggedItemIndex = nextI
+                                                    dragOffset -= threshold
+                                                } else if (dragOffset < -threshold && draggedItemIndex!! > 0) {
+                                                    val currentI = draggedItemIndex!!
+                                                    val prevI = currentI - 1
+                                                    val list = localPlaylistItems.toMutableList()
+                                                    val temp = list[currentI]
+                                                    list[currentI] = list[prevI]
+                                                    list[prevI] = temp
+                                                    localPlaylistItems = list
+                                                    draggedItemIndex = prevI
+                                                    dragOffset += threshold
                                                 }
                                             }
                                         }
