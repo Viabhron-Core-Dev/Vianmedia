@@ -296,27 +296,6 @@ class PlaybackService : MediaSessionService(), LifecycleOwner, ViewModelStoreOwn
         cv.setContent {
             var isMinimized by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
-            androidx.compose.runtime.DisposableEffect(Unit) {
-                val receiver = object : android.content.BroadcastReceiver() {
-                    override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
-                        if (intent.action == android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS) {
-                            isMinimized = true
-                            val lp = layoutParams
-                            if (lp != null) {
-                                lp.width = WindowManager.LayoutParams.WRAP_CONTENT
-                                lp.height = WindowManager.LayoutParams.WRAP_CONTENT
-                                windowManager.updateViewLayout(cv, lp)
-                            }
-                        }
-                    }
-                }
-                val filter = android.content.IntentFilter(android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
-                registerReceiver(receiver, filter)
-                onDispose {
-                    unregisterReceiver(receiver)
-                }
-            }
-
             com.example.ui.components.MiniPlayerOverlay(
                 player = com.example.service.PlayerManager.exoPlayer,
                 onClose = {

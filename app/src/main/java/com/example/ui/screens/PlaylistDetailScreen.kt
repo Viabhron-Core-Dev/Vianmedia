@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -55,10 +56,20 @@ fun PlaylistDetailScreen(
 
     val playlist by repository.getPlaylistById(playlistId).collectAsStateWithLifecycle(initialValue = null)
     val playlistItems by repository.getItemsForPlaylist(playlistId).collectAsStateWithLifecycle(initialValue = emptyList())
-    var localPlaylistItems by remember(playlistItems) { mutableStateOf(playlistItems) }
     
     var draggedItemIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
+    var localPlaylistItems by remember { mutableStateOf(playlistItems) }
+
+    LaunchedEffect(playlistItems) {
+        if (draggedItemIndex == null) {
+            localPlaylistItems = playlistItems
+        }
+    }
+
+    var itemHeightPx by remember { mutableFloatStateOf(150f) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val spacingPx = remember(density) { with(density) { 8.dp.toPx() } }
 
     val selectedItems = remember { mutableStateListOf<PlaylistItem>() }
     val isMultiSelectMode = selectedItems.isNotEmpty()
@@ -188,6 +199,9 @@ fun PlaylistDetailScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .onSizeChanged { size ->
+                                itemHeightPx = size.height.toFloat()
+                            }
                             .zIndex(if (isDragging) 1f else 0f)
                             .graphicsLayer {
                                 translationY = if (isDragging) dragOffset else 0f
@@ -262,8 +276,8 @@ fun PlaylistDetailScreen(
                                                 change.consume()
                                                 dragOffset += dragAmount.y
                                                 
-                                                val threshold = 150f
-                                                if (dragOffset > threshold && draggedItemIndex!! < localPlaylistItems.size - 1) {
+                                                val threshold = itemHeightPx + spacingPx
+                                                while (dragOffset > threshold && draggedItemIndex!! < localPlaylistItems.size - 1) {
                                                     val currentI = draggedItemIndex!!
                                                     val nextI = currentI + 1
                                                     val list = localPlaylistItems.toMutableList()
@@ -273,7 +287,8 @@ fun PlaylistDetailScreen(
                                                     localPlaylistItems = list
                                                     draggedItemIndex = nextI
                                                     dragOffset -= threshold
-                                                } else if (dragOffset < -threshold && draggedItemIndex!! > 0) {
+                                                }
+                                                while (dragOffset < -threshold && draggedItemIndex!! > 0) {
                                                     val currentI = draggedItemIndex!!
                                                     val prevI = currentI - 1
                                                     val list = localPlaylistItems.toMutableList()
