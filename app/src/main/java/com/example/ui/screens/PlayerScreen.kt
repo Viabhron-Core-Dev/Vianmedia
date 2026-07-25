@@ -154,14 +154,23 @@ enum class GestureType { NONE, SEEK, BRIGHTNESS, VOLUME, ZOOM_PAN }
 
 fun getDisplayNameFromUri(context: android.content.Context, uri: Uri): String {
     if (uri.scheme == "content") {
-        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                if (index != -1) {
-                    val name = cursor.getString(index)
-                    if (name != null) return name.substringBeforeLast('.')
+        try {
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val displayIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (displayIndex != -1) {
+                        val name = cursor.getString(displayIndex)
+                        if (!name.isNullOrBlank()) return name.substringBeforeLast('.')
+                    }
+                    val titleIndex = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns.TITLE)
+                    if (titleIndex != -1) {
+                        val title = cursor.getString(titleIndex)
+                        if (!title.isNullOrBlank()) return title
+                    }
                 }
             }
+        } catch (e: Exception) {
+            // Ignore
         }
     }
     return uri.lastPathSegment?.substringBeforeLast('.') ?: "Unknown"
@@ -319,12 +328,11 @@ fun PlayerScreen(
         if (window != null) {
             val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
             insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            insetsController.isAppearanceLightStatusBars = false
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
             if (showControls && !isInPipMode) {
-                window.statusBarColor = android.graphics.Color.BLACK
-                insetsController.show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-                insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
+                insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             } else {
-                window.statusBarColor = android.graphics.Color.TRANSPARENT
                 insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             }
         }
@@ -1052,18 +1060,12 @@ fun PlayerScreen(
             } else {
                 Box(modifier = Modifier.fillMaxSize()) {
                     // Top controls background
-                    Column(modifier = Modifier.align(Alignment.TopCenter)) {
-                        Box(modifier = Modifier
-                            .fillMaxWidth()
-                            .windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.systemBarsIgnoringVisibility.only(androidx.compose.foundation.layout.WindowInsetsSides.Top))
-                            .background(Color.Black)
-                        )
-                        Box(modifier = Modifier
-                            .fillMaxWidth()
-                            .height(80.dp)
-                            .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)))
-                        )
-                    }
+                    Box(modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.9f), Color.Transparent)))
+                        .align(Alignment.TopCenter)
+                    )
                     
                     // Top controls overlay
                     Column(
@@ -1342,9 +1344,9 @@ fun PlayerScreen(
                     // Bottom controls background
                     Box(modifier = Modifier
                         .fillMaxWidth()
-                        .height(96.dp)
+                        .height(180.dp)
                         .align(Alignment.BottomCenter)
-                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))))
+                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f))))
                     )
 
                     // Bottom controls overlay

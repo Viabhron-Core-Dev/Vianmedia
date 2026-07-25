@@ -41,7 +41,7 @@ fun MiniPlayerOverlay(
     var playlist by remember { mutableStateOf(emptyList<MediaItem>()) }
     var isReversed by remember { mutableStateOf(false) }
     var currentIndex by remember { mutableIntStateOf(player?.currentMediaItemIndex ?: -1) }
-    var isExpanded by remember { mutableStateOf(false) }
+
     var loopMode by remember { mutableIntStateOf(player?.repeatMode ?: Player.REPEAT_MODE_OFF) }
     var shuffleMode by remember { mutableStateOf(player?.shuffleModeEnabled == true) }
 
@@ -163,10 +163,11 @@ fun MiniPlayerOverlay(
                     }
                     IconButton(onClick = {
                         val intent = android.content.Intent(context, com.example.MainActivity::class.java).apply {
-                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+                            action = "com.example.ACTION_OPEN_PLAYER"
+                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
                         }
                         context.startActivity(intent)
-                        onClose()
+                        onMinimize()
                     }, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Filled.OpenInFull, contentDescription = "Main Player", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
                     }
@@ -262,13 +263,11 @@ fun MiniPlayerOverlay(
                     IconButton(onClick = { /* Refresh playlist logic */ }) {
                         Icon(Icons.Filled.Refresh, "Refresh", tint = MaterialTheme.colorScheme.onSurface)
                     }
-                    IconButton(onClick = { isExpanded = !isExpanded }) {
-                        Icon(if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, "Toggle Playlist", tint = MaterialTheme.colorScheme.onSurface)
-                    }
+
                 }
             }
             
-            if (isExpanded) {
+            if (true) {
                 var explorerMode by remember { mutableStateOf("current") }
                 
                 // The playlist view header

@@ -1,0 +1,12 @@
+- Timestamp: 2026-07-25T14:45
+- Summary: Fixed playlist item names, visual drag, status bar gradient, and miniplayer expansion.
+- Files: 
+  - PlaylistDetailScreen.kt
+  - PlayerScreen.kt
+  - MiniPlayerOverlay.kt
+- Actions:
+  - Updated PlaylistDetailScreen to inject MediaMetadata title so MiniPlayer can display names instead of IDs.
+  - Implemented completely visual drag in PlaylistDetailScreen using `animateFloatAsState` to eliminate layout thrashing and jumping.
+  - Set `isAppearanceLightStatusBars = false` and `window.statusBarColor = Color.TRANSPARENT` in PlayerScreen, and replaced solid background with a dark gradient mimicking Next Player to make system icons clear.
+  - Removed toggle from MiniPlayerOverlay to make the explorer instantly visible as requested.
+- Verification: Compiled via gradle assembleDebug.

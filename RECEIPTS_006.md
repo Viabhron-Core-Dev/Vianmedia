@@ -1,0 +1,9 @@
+- Timestamp: 2026-07-25T15:07
+- Summary: Fixed MiniPlayer expand intent and navigation bar visibility during playback.
+- Files: 
+  - MiniPlayerOverlay.kt
+  - PlayerScreen.kt
+- Actions:
+  - In `MiniPlayerOverlay.kt`, changed the expand button click handler to call `onMinimize()` instead of `onClose()`. `onClose()` was destroying the `PlayerManager` state, while `onMinimize()` properly hides the overlay and leaves the player active so `MainActivity` can resume it.
+  - In `PlayerScreen.kt`, changed `insetsController.hide(Type.navigationBars())` to instead only hide/show `Type.systemBars()`, ensuring the bottom navigation bar is correctly shown whenever the user brings up the player controls.
+- Verification: Compiled via gradle assembleDebug.
