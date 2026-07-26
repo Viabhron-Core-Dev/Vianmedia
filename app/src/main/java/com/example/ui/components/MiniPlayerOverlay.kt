@@ -91,9 +91,9 @@ fun MiniPlayerOverlay(
     if (isMinimizedExternal) {
         Box(
             modifier = Modifier
-                .size(56.dp)
+                .size(48.dp)
                 .clip(androidx.compose.foundation.shape.CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer)
+                .background(androidx.compose.ui.graphics.Color(0xFF2196F3))
                 .pointerInput(Unit) {
                     detectDragGesturesAfterLongPress(
                         onDrag = { change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: androidx.compose.ui.geometry.Offset ->
@@ -105,7 +105,7 @@ fun MiniPlayerOverlay(
                 .clickable { onMinimizeChange(false) },
             contentAlignment = Alignment.Center
         ) {
-            Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_play_launcher_foreground), contentDescription = "Unfold", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(32.dp))
+            Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_play_launcher_foreground), contentDescription = "Unfold", tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(24.dp))
         }
         return
     }
@@ -114,14 +114,14 @@ fun MiniPlayerOverlay(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+            .background(androidx.compose.ui.graphics.Color(0xFF2196F3).copy(alpha = 0.95f))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Top Title bar for moving, PIP and Main Player buttons
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .background(androidx.compose.ui.graphics.Color(0xFF1976D2))
                     .pointerInput(Unit) {
                         detectDragGesturesAfterLongPress(
                             onDrag = { change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: androidx.compose.ui.geometry.Offset ->
@@ -134,11 +134,11 @@ fun MiniPlayerOverlay(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(Icons.Filled.DragHandle, contentDescription = "Drag to move", tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                Icon(Icons.Filled.DragHandle, contentDescription = "Drag to move", tint = androidx.compose.ui.graphics.Color.White)
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = androidx.compose.ui.graphics.Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
@@ -159,7 +159,7 @@ fun MiniPlayerOverlay(
                             android.widget.Toast.makeText(context, "PiP permission not granted", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }, modifier = Modifier.size(32.dp)) {
-                        Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_pip), contentDescription = "PIP", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
+                        Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_pip), contentDescription = "PIP", tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
                     }
                     IconButton(onClick = {
                         val intent = android.content.Intent(context, com.example.MainActivity::class.java).apply {
@@ -169,7 +169,7 @@ fun MiniPlayerOverlay(
                         context.startActivity(intent)
                         onMinimize()
                     }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Filled.OpenInFull, contentDescription = "Main Player", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.OpenInFull, contentDescription = "Main Player", tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
                     }
                 }
             }
@@ -182,6 +182,7 @@ fun MiniPlayerOverlay(
             ) {
                 // Progress bar
                 val progress = if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
+                @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
                 Slider(
                     value = progress,
                     onValueChange = { newVal ->
@@ -193,11 +194,26 @@ fun MiniPlayerOverlay(
                         .fillMaxWidth()
                         .height(24.dp)
                         .padding(horizontal = 4.dp),
-                    colors = SliderDefaults.colors(
-                        thumbColor = MaterialTheme.colorScheme.primary,
-                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                        inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                    )
+                    thumb = {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.CircleShape)
+                        )
+                    },
+                    track = { sliderState ->
+                        SliderDefaults.Track(
+                            sliderState = sliderState,
+                            colors = SliderDefaults.colors(
+                                activeTrackColor = androidx.compose.ui.graphics.Color.White,
+                                inactiveTrackColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.3f)
+                            ),
+                            drawStopIndicator = null,
+                            thumbTrackGapSize = 0.dp,
+                            trackInsideCornerSize = 0.dp,
+                            modifier = Modifier.height(4.dp)
+                        )
+                    }
                 )
                 
                 // Playback controls row
@@ -207,24 +223,24 @@ fun MiniPlayerOverlay(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { player?.seekToPreviousMediaItem() }) {
-                        Icon(Icons.Filled.SkipPrevious, "Previous", tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(Icons.Filled.SkipPrevious, "Previous", tint = androidx.compose.ui.graphics.Color.White)
                     }
                     IconButton(onClick = { player?.seekTo(player.currentPosition - 5000) }) {
-                        Icon(Icons.Filled.FastRewind, "-5s", tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(Icons.Filled.FastRewind, "-5s", tint = androidx.compose.ui.graphics.Color.White)
                     }
                     IconButton(onClick = {
                         if (isPlaying) player?.pause() else player?.play()
                     }) {
-                        Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play/Pause", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(36.dp))
+                        Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play/Pause", tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(36.dp))
                     }
                     IconButton(onClick = { player?.seekTo(player.currentPosition + 5000) }) {
-                        Icon(Icons.Filled.FastForward, "+5s", tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(Icons.Filled.FastForward, "+5s", tint = androidx.compose.ui.graphics.Color.White)
                     }
                     IconButton(onClick = { player?.seekToNextMediaItem() }) {
-                        Icon(Icons.Filled.SkipNext, "Next", tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(Icons.Filled.SkipNext, "Next", tint = androidx.compose.ui.graphics.Color.White)
                     }
                     IconButton(onClick = { player?.stop(); player?.clearMediaItems(); onClose() }) {
-                        Icon(Icons.Filled.Stop, "Stop", tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(Icons.Filled.Stop, "Stop", tint = androidx.compose.ui.graphics.Color.White)
                     }
                 }
 

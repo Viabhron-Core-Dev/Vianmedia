@@ -234,6 +234,7 @@ fun PlaylistDetailScreen(
                             .onSizeChanged { size ->
                                 itemHeightPx = size.height.toFloat()
                             }
+                            .animateItem()
                             .zIndex(if (isDragging) 1f else 0f)
                             .graphicsLayer {
                                 translationY = if (isDragging) targetOffset else animatedOffset
