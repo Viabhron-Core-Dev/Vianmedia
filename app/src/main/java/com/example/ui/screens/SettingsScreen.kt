@@ -40,6 +40,7 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
     val settingsManager = remember { SettingsManager.getInstance(context) }
     val coroutineScope = rememberCoroutineScope()
     var showPlayerSettingsDialog by remember { mutableStateOf(false) }
+    var showPermissionsDialog by remember { mutableStateOf(false) }
     
     val viewModel: MediaViewModel = viewModel()
     val mediaFolders by viewModel.mediaFolders.collectAsState()
@@ -241,6 +242,14 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
             
             Spacer(modifier = Modifier.height(24.dp))
             
+            Text("Permissions", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = { showPermissionsDialog = true }) {
+                Text("Vian Permissions Manager")
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
             Text("Player Settings", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
             Button(onClick = { showPlayerSettingsDialog = true }) {
@@ -304,6 +313,15 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                         TextButton(onClick = { showPriorityDialog = false }) { Text("Cancel") }
                     }
                 )
+            }
+            
+            if (showPermissionsDialog) {
+                androidx.compose.ui.window.Dialog(
+                    onDismissRequest = { showPermissionsDialog = false },
+                    properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+                ) {
+                    com.example.ui.screens.PermissionsManagerScreen(onNavigateBack = { showPermissionsDialog = false })
+                }
             }
             
             if (showPlayerSettingsDialog) {
