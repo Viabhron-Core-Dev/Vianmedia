@@ -1,5 +1,6 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 package com.example.ui.screens
+import kotlinx.coroutines.flow.first
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.widthIn
@@ -458,6 +459,39 @@ fun PlayerScreen(
                                 controller.play()
                             }
                         }
+                    }
+                    
+                    // Generate Temp Current playlist
+                    try {
+                        val db = com.example.data.AppDatabase.getDatabase(context)
+                        val playlistRepo = com.example.data.PlaylistRepository(db.playlistDao())
+                        val existingTemp = playlistRepo.allPlaylists.first().find { it.name == "Temp Current" }
+                        val tempPlaylistId = if (existingTemp != null) {
+                            existingTemp.id
+                        } else {
+                            val newPlaylist = com.example.data.Playlist(name = "Temp Current")
+                            playlistRepo.insertPlaylist(newPlaylist).toInt()
+                        }
+                        
+                        // clear existing items
+                        val existingItems = playlistRepo.getItemsForPlaylist(tempPlaylistId).first()
+                        for (item in existingItems) {
+                            playlistRepo.deletePlaylistItemById(item.id)
+                        }
+                        
+                        // insert new items
+                        val time = System.currentTimeMillis()
+                        for (i in playlistItems.indices) {
+                            val item = playlistItems[i]
+                            val pItem = com.example.data.PlaylistItem(
+                                playlistId = tempPlaylistId,
+                                mediaUri = item.mediaId,
+                                timestamp = time - i * 1000L // descending order
+                            )
+                            playlistRepo.insertPlaylistItem(pItem)
+                        }
+                    } catch(e: Exception) {
+                        e.printStackTrace()
                     }
                 }
             }

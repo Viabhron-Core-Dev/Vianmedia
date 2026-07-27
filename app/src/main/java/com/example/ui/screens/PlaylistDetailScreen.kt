@@ -98,6 +98,45 @@ fun PlaylistDetailScreen(
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     }
+                },
+                actions = {
+                    if (!isMultiSelectMode && playlist?.name == "Temp Current") {
+                        var showSaveDialog by remember { mutableStateOf(false) }
+                        TextButton(onClick = { showSaveDialog = true }) {
+                            Text("Save As")
+                        }
+                        
+                        if (showSaveDialog) {
+                            var newName by remember { mutableStateOf("") }
+                            AlertDialog(
+                                onDismissRequest = { showSaveDialog = false },
+                                title = { Text("Save Playlist As") },
+                                text = {
+                                    OutlinedTextField(
+                                        value = newName,
+                                        onValueChange = { newName = it },
+                                        label = { Text("Playlist Name") },
+                                        singleLine = true
+                                    )
+                                },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
+                                            if (newName.isNotBlank() && newName != "Temp Current") {
+                                                coroutineScope.launch {
+                                                    repository.updatePlaylists(listOf(playlist!!.copy(name = newName)))
+                                                }
+                                                showSaveDialog = false
+                                            }
+                                        }
+                                    ) { Text("Save") }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showSaveDialog = false }) { Text("Cancel") }
+                                }
+                            )
+                        }
+                    }
                 }
             )
         },
@@ -234,7 +273,6 @@ fun PlaylistDetailScreen(
                             .onSizeChanged { size ->
                                 itemHeightPx = size.height.toFloat()
                             }
-                            .animateItem()
                             .zIndex(if (isDragging) 1f else 0f)
                             .graphicsLayer {
                                 translationY = if (isDragging) targetOffset else animatedOffset

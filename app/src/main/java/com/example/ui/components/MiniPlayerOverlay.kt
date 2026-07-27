@@ -1,4 +1,5 @@
 package com.example.ui.components
+import kotlinx.coroutines.flow.first
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -91,7 +92,7 @@ fun MiniPlayerOverlay(
     if (isMinimizedExternal) {
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(40.dp)
                 .clip(androidx.compose.foundation.shape.CircleShape)
                 .background(androidx.compose.ui.graphics.Color(0xFF2196F3))
                 .pointerInput(Unit) {
@@ -105,7 +106,7 @@ fun MiniPlayerOverlay(
                 .clickable { onMinimizeChange(false) },
             contentAlignment = Alignment.Center
         ) {
-            Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_play_launcher_foreground), contentDescription = "Unfold", tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(24.dp))
+            Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_play_launcher_foreground), contentDescription = "Unfold", tint = androidx.compose.ui.graphics.Color(0xFF2196F3), modifier = Modifier.size(20.dp))
         }
         return
     }
@@ -114,14 +115,14 @@ fun MiniPlayerOverlay(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(12.dp))
-            .background(androidx.compose.ui.graphics.Color(0xFF2196F3).copy(alpha = 0.95f))
+            .background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.95f))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Top Title bar for moving, PIP and Main Player buttons
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(androidx.compose.ui.graphics.Color(0xFF1976D2))
+                    .background(androidx.compose.ui.graphics.Color(0xFFF5F5F5))
                     .pointerInput(Unit) {
                         detectDragGesturesAfterLongPress(
                             onDrag = { change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: androidx.compose.ui.geometry.Offset ->
@@ -134,11 +135,11 @@ fun MiniPlayerOverlay(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(Icons.Filled.DragHandle, contentDescription = "Drag to move", tint = androidx.compose.ui.graphics.Color.White)
+                Icon(Icons.Filled.DragHandle, contentDescription = "Drag to move", tint = androidx.compose.ui.graphics.Color(0xFF2196F3))
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelMedium,
-                    color = androidx.compose.ui.graphics.Color.White,
+                    color = androidx.compose.ui.graphics.Color.Black,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
@@ -159,7 +160,7 @@ fun MiniPlayerOverlay(
                             android.widget.Toast.makeText(context, "PiP permission not granted", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }, modifier = Modifier.size(32.dp)) {
-                        Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_pip), contentDescription = "PIP", tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
+                        Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_pip), contentDescription = "PIP", tint = androidx.compose.ui.graphics.Color(0xFF2196F3), modifier = Modifier.size(20.dp))
                     }
                     IconButton(onClick = {
                         val intent = android.content.Intent(context, com.example.MainActivity::class.java).apply {
@@ -169,7 +170,7 @@ fun MiniPlayerOverlay(
                         context.startActivity(intent)
                         onMinimize()
                     }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Filled.OpenInFull, contentDescription = "Main Player", tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.OpenInFull, contentDescription = "Main Player", tint = androidx.compose.ui.graphics.Color(0xFF2196F3), modifier = Modifier.size(20.dp))
                     }
                 }
             }
@@ -198,15 +199,15 @@ fun MiniPlayerOverlay(
                         Box(
                             modifier = Modifier
                                 .size(12.dp)
-                                .background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.CircleShape)
+                                .background(androidx.compose.ui.graphics.Color(0xFF2196F3), androidx.compose.foundation.shape.CircleShape)
                         )
                     },
                     track = { sliderState ->
                         SliderDefaults.Track(
                             sliderState = sliderState,
                             colors = SliderDefaults.colors(
-                                activeTrackColor = androidx.compose.ui.graphics.Color.White,
-                                inactiveTrackColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.3f)
+                                activeTrackColor = androidx.compose.ui.graphics.Color(0xFF2196F3),
+                                inactiveTrackColor = androidx.compose.ui.graphics.Color.LightGray
                             ),
                             drawStopIndicator = null,
                             thumbTrackGapSize = 0.dp,
@@ -223,24 +224,24 @@ fun MiniPlayerOverlay(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { player?.seekToPreviousMediaItem() }) {
-                        Icon(Icons.Filled.SkipPrevious, "Previous", tint = androidx.compose.ui.graphics.Color.White)
+                        Icon(Icons.Filled.SkipPrevious, "Previous", tint = androidx.compose.ui.graphics.Color(0xFF2196F3))
                     }
                     IconButton(onClick = { player?.seekTo(player.currentPosition - 5000) }) {
-                        Icon(Icons.Filled.FastRewind, "-5s", tint = androidx.compose.ui.graphics.Color.White)
+                        Icon(Icons.Filled.FastRewind, "-5s", tint = androidx.compose.ui.graphics.Color(0xFF2196F3))
                     }
                     IconButton(onClick = {
                         if (isPlaying) player?.pause() else player?.play()
                     }) {
-                        Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play/Pause", tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(36.dp))
+                        Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play/Pause", tint = androidx.compose.ui.graphics.Color(0xFF2196F3), modifier = Modifier.size(36.dp))
                     }
                     IconButton(onClick = { player?.seekTo(player.currentPosition + 5000) }) {
-                        Icon(Icons.Filled.FastForward, "+5s", tint = androidx.compose.ui.graphics.Color.White)
+                        Icon(Icons.Filled.FastForward, "+5s", tint = androidx.compose.ui.graphics.Color(0xFF2196F3))
                     }
                     IconButton(onClick = { player?.seekToNextMediaItem() }) {
-                        Icon(Icons.Filled.SkipNext, "Next", tint = androidx.compose.ui.graphics.Color.White)
+                        Icon(Icons.Filled.SkipNext, "Next", tint = androidx.compose.ui.graphics.Color(0xFF2196F3))
                     }
                     IconButton(onClick = { player?.stop(); player?.clearMediaItems(); onClose() }) {
-                        Icon(Icons.Filled.Stop, "Stop", tint = androidx.compose.ui.graphics.Color.White)
+                        Icon(Icons.Filled.Stop, "Stop", tint = androidx.compose.ui.graphics.Color(0xFF2196F3))
                     }
                 }
 
