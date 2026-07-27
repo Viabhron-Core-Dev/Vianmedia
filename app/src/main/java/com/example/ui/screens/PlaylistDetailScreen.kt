@@ -275,7 +275,11 @@ fun PlaylistDetailScreen(
                             }
                             .zIndex(if (isDragging) 1f else 0f)
                             .graphicsLayer {
-                                translationY = if (isDragging) targetOffset else animatedOffset
+                                translationY = if (draggedItemIndex != null) {
+                                    if (isDragging) targetOffset else animatedOffset
+                                } else {
+                                    0f
+                                }
                             }
                             .clip(RoundedCornerShape(8.dp))
                             .combinedClickable(
@@ -338,11 +342,15 @@ fun PlaylistDetailScreen(
                                                             localPlaylistItems = list
                                                             
                                                             val newTimestamps = playlistItems.map { it.timestamp }
-                                                            coroutineScope.launch {
-                                                                localPlaylistItems.forEachIndexed { i, localItem ->
-                                                                    if (localItem.timestamp != newTimestamps[i]) {
-                                                                        repository.updatePlaylistItem(localItem.copy(timestamp = newTimestamps[i]))
-                                                                    }
+                                                            val itemsToUpdate = mutableListOf<com.example.data.PlaylistItem>()
+                                                            localPlaylistItems.forEachIndexed { i, localItem ->
+                                                                if (localItem.timestamp != newTimestamps[i]) {
+                                                                    itemsToUpdate.add(localItem.copy(timestamp = newTimestamps[i]))
+                                                                }
+                                                            }
+                                                            if (itemsToUpdate.isNotEmpty()) {
+                                                                coroutineScope.launch {
+                                                                    repository.updatePlaylistItems(itemsToUpdate)
                                                                 }
                                                             }
                                                         }

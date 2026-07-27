@@ -2,6 +2,7 @@ package com.example.ui.components
 import kotlinx.coroutines.flow.first
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -92,9 +93,10 @@ fun MiniPlayerOverlay(
     if (isMinimizedExternal) {
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .size(48.dp)
                 .clip(androidx.compose.foundation.shape.CircleShape)
                 .background(androidx.compose.ui.graphics.Color(0xFF2196F3))
+                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), androidx.compose.foundation.shape.CircleShape)
                 .pointerInput(Unit) {
                     detectDragGesturesAfterLongPress(
                         onDrag = { change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: androidx.compose.ui.geometry.Offset ->
@@ -106,7 +108,11 @@ fun MiniPlayerOverlay(
                 .clickable { onMinimizeChange(false) },
             contentAlignment = Alignment.Center
         ) {
-            Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_play_launcher_foreground), contentDescription = "Unfold", tint = androidx.compose.ui.graphics.Color(0xFF2196F3), modifier = Modifier.size(20.dp))
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_launcher_foreground),
+                contentDescription = "Unfold",
+                modifier = Modifier.fillMaxSize()
+            )
         }
         return
     }
@@ -115,14 +121,15 @@ fun MiniPlayerOverlay(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(12.dp))
-            .background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.95f))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Top Title bar for moving, PIP and Main Player buttons
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(androidx.compose.ui.graphics.Color(0xFFF5F5F5))
+                    .background(MaterialTheme.colorScheme.surface)
                     .pointerInput(Unit) {
                         detectDragGesturesAfterLongPress(
                             onDrag = { change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: androidx.compose.ui.geometry.Offset ->
@@ -135,11 +142,11 @@ fun MiniPlayerOverlay(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(Icons.Filled.DragHandle, contentDescription = "Drag to move", tint = androidx.compose.ui.graphics.Color(0xFF2196F3))
+                Icon(Icons.Filled.DragHandle, contentDescription = "Drag to move", tint = MaterialTheme.colorScheme.onSurface)
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelMedium,
-                    color = androidx.compose.ui.graphics.Color.Black,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
@@ -160,7 +167,7 @@ fun MiniPlayerOverlay(
                             android.widget.Toast.makeText(context, "PiP permission not granted", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }, modifier = Modifier.size(32.dp)) {
-                        Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_pip), contentDescription = "PIP", tint = androidx.compose.ui.graphics.Color(0xFF2196F3), modifier = Modifier.size(20.dp))
+                        Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_pip), contentDescription = "PIP", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
                     }
                     IconButton(onClick = {
                         val intent = android.content.Intent(context, com.example.MainActivity::class.java).apply {
@@ -170,11 +177,11 @@ fun MiniPlayerOverlay(
                         context.startActivity(intent)
                         onMinimize()
                     }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Filled.OpenInFull, contentDescription = "Main Player", tint = androidx.compose.ui.graphics.Color(0xFF2196F3), modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.OpenInFull, contentDescription = "Main Player", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
                     }
                 }
             }
-
+            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), thickness = 1.dp)
             // Controls
             Column(
                 modifier = Modifier
@@ -224,24 +231,24 @@ fun MiniPlayerOverlay(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { player?.seekToPreviousMediaItem() }) {
-                        Icon(Icons.Filled.SkipPrevious, "Previous", tint = androidx.compose.ui.graphics.Color(0xFF2196F3))
+                        Icon(Icons.Filled.SkipPrevious, "Previous", tint = MaterialTheme.colorScheme.onSurface)
                     }
                     IconButton(onClick = { player?.seekTo(player.currentPosition - 5000) }) {
-                        Icon(Icons.Filled.FastRewind, "-5s", tint = androidx.compose.ui.graphics.Color(0xFF2196F3))
+                        Icon(Icons.Filled.FastRewind, "-5s", tint = MaterialTheme.colorScheme.onSurface)
                     }
                     IconButton(onClick = {
                         if (isPlaying) player?.pause() else player?.play()
                     }) {
-                        Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play/Pause", tint = androidx.compose.ui.graphics.Color(0xFF2196F3), modifier = Modifier.size(36.dp))
+                        Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play/Pause", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(36.dp))
                     }
                     IconButton(onClick = { player?.seekTo(player.currentPosition + 5000) }) {
-                        Icon(Icons.Filled.FastForward, "+5s", tint = androidx.compose.ui.graphics.Color(0xFF2196F3))
+                        Icon(Icons.Filled.FastForward, "+5s", tint = MaterialTheme.colorScheme.onSurface)
                     }
                     IconButton(onClick = { player?.seekToNextMediaItem() }) {
-                        Icon(Icons.Filled.SkipNext, "Next", tint = androidx.compose.ui.graphics.Color(0xFF2196F3))
+                        Icon(Icons.Filled.SkipNext, "Next", tint = MaterialTheme.colorScheme.onSurface)
                     }
                     IconButton(onClick = { player?.stop(); player?.clearMediaItems(); onClose() }) {
-                        Icon(Icons.Filled.Stop, "Stop", tint = androidx.compose.ui.graphics.Color(0xFF2196F3))
+                        Icon(Icons.Filled.Stop, "Stop", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 }
 
