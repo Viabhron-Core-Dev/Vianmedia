@@ -323,7 +323,7 @@ fun PlaylistDetailScreen(
                                     modifier = Modifier
                                         .size(36.dp)
                                         .padding(4.dp)
-                                        .pointerInput(Unit) {
+                                        .pointerInput(item.id, index) {
                                             detectDragGestures(
                                                 onDragStart = {
                                                     draggedItemIndex = index

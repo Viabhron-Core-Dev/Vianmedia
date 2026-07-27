@@ -111,7 +111,8 @@ fun MiniPlayerOverlay(
             androidx.compose.foundation.Image(
                 painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_launcher_foreground),
                 contentDescription = "Unfold",
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(1.6f),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
             )
         }
         return
@@ -121,7 +122,7 @@ fun MiniPlayerOverlay(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+            .background(MaterialTheme.colorScheme.background)
             .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -387,7 +388,7 @@ fun MiniPlayerOverlay(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(8.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f), RoundedCornerShape(16.dp)),
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {

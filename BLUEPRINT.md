@@ -15,7 +15,8 @@
 - **MiniPlayerOverlay**: Floating draggable overlay, persists state when navigating, fold/unfold logic
 
 ## Recent Changes
-- Changed floating window minimized icon to perfectly mirror the app's launcher icon.
-- Styled Mini Player colors to match Library TopAppBar (Surface color header, subtle primary borders).
-- Changed floating window playback buttons to black/onSurface instead of blue.
-- Fixed translationY animations to prevent glitchy post-drop reshreshuffling in Playlist view.
+- Fixed playlist reorder dragging wrong item by keying `pointerInput` to `item.id` and `index`.
+- Added auto-cleanup lifecycle for the "Temp Current" playlist (deletes itself when playback finishes or player is stopped).
+- Zoomed in on the Mini Player floating icon, cropping the blue background to focus on the play button.
+- Made Mini Player backgrounds completely opaque to fix visual bleeding (pink tinting) from underlying views.
+- Aligned Mini Player container background to `MaterialTheme.colorScheme.background` to perfectly match the Library's slight blue theme.

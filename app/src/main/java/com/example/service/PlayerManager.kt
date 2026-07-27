@@ -1,4 +1,5 @@
 package com.example.service
+import kotlinx.coroutines.launch
 
 import android.content.Context
 import androidx.media3.exoplayer.ExoPlayer
@@ -64,6 +65,40 @@ object PlayerManager {
         exoPlayer?.pauseAtEndOfMediaItems = true
             
         exoPlayer?.addListener(object : androidx.media3.common.Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == androidx.media3.common.Player.STATE_ENDED || playbackState == androidx.media3.common.Player.STATE_IDLE) {
+                    val count = exoPlayer?.mediaItemCount ?: 0
+                    if (playbackState == androidx.media3.common.Player.STATE_ENDED || count == 0) {
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            try {
+                                val db = com.example.data.AppDatabase.getDatabase(context)
+                                val dao = db.playlistDao()
+                                val temp = dao.getAllPlaylistsSync().find { it.name == "Temp Current" }
+                                if (temp != null) {
+                                    dao.deletePlaylistById(temp.id)
+                                }
+                            } catch (e: Exception) {}
+                        }
+                    }
+                }
+            }
+
+            override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
+                if (events.contains(androidx.media3.common.Player.EVENT_TIMELINE_CHANGED)) {
+                    if (player.mediaItemCount == 0) {
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            try {
+                                val db = com.example.data.AppDatabase.getDatabase(context)
+                                val dao = db.playlistDao()
+                                val temp = dao.getAllPlaylistsSync().find { it.name == "Temp Current" }
+                                if (temp != null) {
+                                    dao.deletePlaylistById(temp.id)
+                                }
+                            } catch (e: Exception) {}
+                        }
+                    }
+                }
+            }
             override fun onAudioSessionIdChanged(audioSessionId: Int) {
                 if (audioSessionId != C.AUDIO_SESSION_ID_UNSET) {
                     try {
