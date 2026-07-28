@@ -16,6 +16,7 @@
 - **MediaWidgetProvider**: Home screen RemoteViews widget
 
 ## Recent Changes
+- Fixed Home Screen widget inflation crash in Launcher (which appeared as a transparent broken box) by replacing unsupported `<View>` tags with `<FrameLayout>` and replacing inline hex colors with `@drawable` resources.
 - Connected widget (`MediaWidgetProvider` and `MediaWidgetService`) to `LogKeeper` for deep error tracking.
 - Fixed blank/crashing home screen widget by removing unsupported `RemoteViews` attributes (`backgroundTint`, `tint`, `<Button>`).
 - Styled the App Widget to perfectly match the Mini Player theme (LightBlueBackground `#F5F7FA`, 12dp rounded corners, `#19202D` dark text/icons, subtle primary borders).

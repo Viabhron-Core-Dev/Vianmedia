@@ -1,0 +1,10 @@
+- Timestamp: 2026-07-28T14:33
+- Summary: Fixed Home Screen widget inflation crash in Launcher.
+- Files: 
+  - widget_media.xml
+  - Custom drawable files
+- Actions:
+  - The "transparent block with fix button" means the Launcher (like Smart Launcher) crashed with an `InflateException` when trying to apply the `RemoteViews`. This exception happens in the Launcher's process, which is why it wasn't caught in our `LogKeeper`.
+  - Found that `<View>` was used as a divider. `<View>` is explicitly NOT supported by `RemoteViews` and causes `ClassNotFoundException`/`InflateException`. Replaced `<View>` with `<FrameLayout>`.
+  - Replaced direct hex color strings (e.g., `#1A2196F3`) in `android:background` and `android:divider` with proper `@drawable/` XML shape resources (`widget_divider`, `widget_search_bg`, `widget_divider_solid`), as some older/custom launchers throw exceptions when parsing direct hex colors in `RemoteViews`.
+- Verification: Compiled and verified locally.

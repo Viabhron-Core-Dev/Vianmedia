@@ -36,10 +36,10 @@
             android:scaleType="centerInside" />
     </LinearLayout>
 
-    <View
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#4D2196F3" />
+        android:background="@drawable/widget_divider_solid" />
 
     <!-- Playback Controls -->
     <LinearLayout
@@ -103,10 +103,10 @@
             android:scaleType="centerInside" />
     </LinearLayout>
 
-    <View
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#4D2196F3" />
+        android:background="@drawable/widget_divider_solid" />
 
     <!-- Playlist / File Explorer -->
     <ListView
@@ -114,7 +114,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:divider="#1A2196F3"
+        android:divider="@drawable/widget_divider"
         android:dividerHeight="1dp" />
 
     <!-- Search Button -->
@@ -131,7 +131,7 @@
             android:textColor="#19202D"
             android:gravity="center"
             android:padding="8dp"
-            android:background="#1A2196F3" />
+            android:background="@drawable/widget_search_bg" />
     </LinearLayout>
 
 </LinearLayout>
