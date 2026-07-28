@@ -13,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 
 class MediaWidgetService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
+        com.example.LogKeeper.log("onGetViewFactory called", "MediaWidgetService")
         return MediaWidgetFactory(this.applicationContext)
     }
 }
@@ -25,9 +26,13 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     private var mode = "PLAYLIST"
     private var folderId: String? = null
 
-    override fun onCreate() {}
+    override fun onCreate() {
+        com.example.LogKeeper.log("onCreate called", "MediaWidgetFactory")
+    }
 
     override fun onDataSetChanged() {
+        com.example.LogKeeper.log("onDataSetChanged started", "MediaWidgetFactory")
+        try {
         val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
         mode = prefs.getString("mode", "PLAYLIST") ?: "PLAYLIST"
         folderId = prefs.getString("folder_id", null)
@@ -58,20 +63,30 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 }
             }
         }
+        com.example.LogKeeper.log("onDataSetChanged finished successfully. Mode: $mode", "MediaWidgetFactory")
+        } catch (e: Exception) {
+            com.example.LogKeeper.logError("MediaWidgetFactory", "Error in onDataSetChanged", e)
+        }
     }
 
     override fun onDestroy() {}
 
     override fun getCount(): Int {
+        try {
         if (mode == "PLAYLIST") return playlist.size
         if (mode == "FOLDERS") {
             if (folderId == null) return folders.size
             else return folderItems.size + 1 // +1 for "Up" button
         }
         return 0
+        } catch (e: Exception) {
+            com.example.LogKeeper.logError("MediaWidgetFactory", "Error in getCount", e)
+            return 0
+        }
     }
 
     override fun getViewAt(position: Int): RemoteViews {
+        try {
         val views = RemoteViews(context.packageName, R.layout.widget_list_item)
         
         if (mode == "PLAYLIST") {
@@ -101,6 +116,10 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             }
         }
         return views
+        } catch (e: Exception) {
+            com.example.LogKeeper.logError("MediaWidgetFactory", "Error in getViewAt for position $position", e)
+            return RemoteViews(context.packageName, R.layout.widget_list_item)
+        }
     }
 
     override fun getLoadingView(): RemoteViews? = null

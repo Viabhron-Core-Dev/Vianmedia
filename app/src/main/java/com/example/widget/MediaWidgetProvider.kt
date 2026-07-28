@@ -11,6 +11,7 @@ import com.example.R
 
 class MediaWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        com.example.LogKeeper.log("onUpdate started for ${appWidgetIds.size} widgets", "MediaWidgetProvider")
         try {
             for (appWidgetId in appWidgetIds) {
                 updateAppWidget(context, appWidgetManager, appWidgetId)
@@ -22,6 +23,8 @@ class MediaWidgetProvider : AppWidgetProvider() {
     }
 
     private fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
+        com.example.LogKeeper.log("updateAppWidget started for widgetId $appWidgetId", "MediaWidgetProvider")
+        try {
         val views = RemoteViews(context.packageName, R.layout.widget_media)
 
         // Pending intent to launch main app
@@ -69,6 +72,10 @@ class MediaWidgetProvider : AppWidgetProvider() {
         views.setPendingIntentTemplate(R.id.widget_list, clickPendingIntent)
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
+            com.example.LogKeeper.log("updateAppWidget completed for widgetId $appWidgetId", "MediaWidgetProvider")
+        } catch (e: Exception) {
+            com.example.LogKeeper.logError("MediaWidgetProvider", "Error in updateAppWidget for widgetId $appWidgetId", e)
+        }
     }
 
     private fun getPendingIntent(context: Context, action: String): PendingIntent {
