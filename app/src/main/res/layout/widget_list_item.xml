@@ -10,8 +10,9 @@
         android:id="@+id/widget_item_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#FFFFFF"
+        android:textColor="#19202D"
         android:textSize="12sp"
         android:maxLines="1"
         android:ellipsize="end" />
+
 </LinearLayout>

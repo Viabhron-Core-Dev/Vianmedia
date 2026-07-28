@@ -3,37 +3,43 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#88000000"
-    android:padding="8dp">
+    android:background="@drawable/widget_bg"
+    android:padding="0dp">
 
     <!-- Top Bar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical">
-        
+        android:gravity="center_vertical"
+        android:background="@drawable/widget_topbar_bg"
+        android:padding="8dp">
+
         <TextView
             android:id="@+id/widget_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="No Media"
-            android:textColor="#FFFFFF"
+            android:textColor="#19202D"
             android:textSize="14sp"
             android:maxLines="1"
             android:ellipsize="end"
             android:textStyle="bold" />
-            
-        <ImageButton
+
+        <ImageView
             android:id="@+id/widget_btn_mode"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:src="@android:drawable/ic_menu_agenda"
-            android:background="@android:color/transparent"
-            android:tint="#FFFFFF" />
-            
+            android:src="@drawable/ic_widget_mode"
+            android:background="@drawable/widget_btn_bg"
+            android:scaleType="centerInside" />
     </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#4D2196F3" />
 
     <!-- Playback Controls -->
     <LinearLayout
@@ -41,65 +47,66 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        android:paddingTop="4dp"
+        android:paddingTop="8dp"
         android:paddingBottom="4dp">
-        
-        <ImageButton
+
+        <ImageView
             android:id="@+id/widget_btn_prev"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:src="@android:drawable/ic_media_previous"
-            android:background="@android:color/transparent"
-            android:tint="#FFFFFF" />
-            
-        <ImageButton
+            android:src="@drawable/ic_widget_prev"
+            android:background="@drawable/widget_btn_bg"
+            android:scaleType="centerInside" />
+
+        <ImageView
             android:id="@+id/widget_btn_play"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
-            android:src="@android:drawable/ic_media_play"
-            android:background="@android:color/transparent"
-            android:tint="#FFFFFF" />
-            
-        <ImageButton
+            android:src="@drawable/ic_widget_play"
+            android:background="@drawable/widget_btn_bg"
+            android:scaleType="centerInside" />
+
+        <ImageView
             android:id="@+id/widget_btn_next"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:src="@android:drawable/ic_media_next"
-            android:background="@android:color/transparent"
-            android:tint="#FFFFFF" />
+            android:src="@drawable/ic_widget_next"
+            android:background="@drawable/widget_btn_bg"
+            android:scaleType="centerInside" />
     </LinearLayout>
-    
+
     <!-- Secondary Controls (Loop, Shuffle) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:paddingBottom="4dp">
-        
-        <ImageButton
+        android:gravity="center"
+        android:paddingBottom="8dp">
+
+        <ImageView
             android:id="@+id/widget_btn_loop"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:src="@drawable/ic_loop_all_inactive"
-            android:background="@android:color/transparent" />
-            
-        <ImageButton
+            android:src="@drawable/ic_widget_loop"
+            android:background="@drawable/widget_btn_bg"
+            android:scaleType="centerInside" />
+
+        <ImageView
             android:id="@+id/widget_btn_shuffle"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:layout_marginStart="8dp"
-            android:src="@android:drawable/ic_menu_sort_by_size"
-            android:background="@android:color/transparent"
-            android:tint="#FFFFFF" />
-            
+            android:layout_marginStart="16dp"
+            android:src="@drawable/ic_widget_shuffle"
+            android:background="@drawable/widget_btn_bg"
+            android:scaleType="centerInside" />
     </LinearLayout>
-    
+
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#33FFFFFF" />
+        android:background="#4D2196F3" />
 
     <!-- Playlist / File Explorer -->
     <ListView
@@ -107,18 +114,24 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:divider="#11FFFFFF"
+        android:divider="#1A2196F3"
         android:dividerHeight="1dp" />
 
-    <!-- Search Button (requested by user) -->
-    <Button
-        android:id="@+id/widget_btn_search"
+    <!-- Search Button -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Search Library"
-        android:textSize="12sp"
-        android:textColor="#FFFFFF"
-        android:backgroundTint="#33FFFFFF"
-        android:layout_marginTop="4dp" />
+        android:padding="4dp">
+        <TextView
+            android:id="@+id/widget_btn_search"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Search Library"
+            android:textSize="12sp"
+            android:textColor="#19202D"
+            android:gravity="center"
+            android:padding="8dp"
+            android:background="#1A2196F3" />
+    </LinearLayout>
 
 </LinearLayout>

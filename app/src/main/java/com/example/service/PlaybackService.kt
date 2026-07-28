@@ -445,13 +445,17 @@ class PlaybackService : MediaSessionService(), LifecycleOwner, ViewModelStoreOwn
             for (appWidgetId in appWidgetIds) {
                 val views = android.widget.RemoteViews(packageName, com.example.R.layout.widget_media)
                 views.setTextViewText(com.example.R.id.widget_title, player.currentMediaItem?.mediaMetadata?.title?.toString() ?: "No Media")
-                views.setImageViewResource(com.example.R.id.widget_btn_play, if (player.isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play)
+                views.setImageViewResource(com.example.R.id.widget_btn_play, if (player.isPlaying) com.example.R.drawable.ic_widget_pause else com.example.R.drawable.ic_widget_play)
                 val loopIcon = when (player.repeatMode) {
                     androidx.media3.common.Player.REPEAT_MODE_ONE -> com.example.R.drawable.ic_loop_one_active
                     androidx.media3.common.Player.REPEAT_MODE_ALL -> com.example.R.drawable.ic_loop_all_active
-                    else -> com.example.R.drawable.ic_loop_all_inactive
+                    else -> com.example.R.drawable.ic_widget_loop
                 }
                 views.setImageViewResource(com.example.R.id.widget_btn_loop, loopIcon)
+                
+                val shuffleIconId = if (player.shuffleModeEnabled) com.example.R.drawable.ic_widget_shuffle_active else com.example.R.drawable.ic_widget_shuffle
+                views.setImageViewResource(com.example.R.id.widget_btn_shuffle, shuffleIconId)
+
                 appWidgetManager.updateAppWidget(appWidgetId, views)
                 appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, com.example.R.id.widget_list)
             }
