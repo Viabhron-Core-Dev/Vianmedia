@@ -26,14 +26,7 @@
             android:maxLines="1"
             android:ellipsize="end"
             android:textStyle="bold" />
-
-        <ImageView
-            android:id="@+id/widget_btn_mode"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@drawable/ic_widget_mode"
-            android:background="@drawable/widget_btn_bg"
-            android:scaleType="centerInside" />
+            
     </LinearLayout>
 
     <FrameLayout
@@ -77,7 +70,7 @@
             android:scaleType="centerInside" />
     </LinearLayout>
 
-    <!-- Secondary Controls (Loop, Shuffle) -->
+    <!-- Secondary Controls (Loop, Shuffle, Refresh) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -101,6 +94,15 @@
             android:src="@drawable/ic_widget_shuffle"
             android:background="@drawable/widget_btn_bg"
             android:scaleType="centerInside" />
+
+        <ImageView
+            android:id="@+id/widget_btn_refresh"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="16dp"
+            android:src="@android:drawable/ic_popup_sync"
+            android:background="@drawable/widget_btn_bg"
+            android:scaleType="centerInside" />
     </LinearLayout>
 
     <FrameLayout
@@ -122,6 +124,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="4dp">
+
         <TextView
             android:id="@+id/widget_btn_search"
             android:layout_width="match_parent"
@@ -133,5 +136,4 @@
             android:padding="8dp"
             android:background="@drawable/widget_search_bg" />
     </LinearLayout>
-
 </LinearLayout>

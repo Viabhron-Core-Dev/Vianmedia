@@ -94,6 +94,12 @@ class MainActivity : ComponentActivity() {
         )
     )
     _currentIntent.value = intent
+    if (intent?.action == "com.example.ACTION_START_PIP") {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            enterPictureInPictureMode(com.example.ui.screens.PipHelper.buildPipParams(this@MainActivity, com.example.service.PlayerManager.exoPlayer))
+        }
+    }
+    
     setContent {
       val currentIntent by _currentIntent.collectAsState()
       val settings = com.example.data.SettingsManager.getInstance(this)

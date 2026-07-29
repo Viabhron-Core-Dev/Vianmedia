@@ -10,3 +10,7 @@
   - Set `isAppearanceLightStatusBars = false` and `window.statusBarColor = Color.TRANSPARENT` in PlayerScreen, and replaced solid background with a dark gradient mimicking Next Player to make system icons clear.
   - Removed toggle from MiniPlayerOverlay to make the explorer instantly visible as requested.
 - Verification: Compiled via gradle assembleDebug.
+- Modified `PlaybackService.kt` to fix theme and apply `MyApplicationTheme` to `MiniPlayerOverlay`.
+- Modified `MediaWidgetService.kt` to conditionally show folder list or playlist based on `isPlaying` and queue state.
+- Added `ACTION_PIP` button in `widget_media.xml` and wired to `MediaWidgetProvider.kt`.
+- Updated `MainActivity.kt` to handle `ACTION_START_PIP` for launching PiP from Widget.

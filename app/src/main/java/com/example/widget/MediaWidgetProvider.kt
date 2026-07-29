@@ -45,7 +45,7 @@ class MediaWidgetProvider : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.widget_btn_next, getPendingIntent(context, "ACTION_NEXT"))
         views.setOnClickPendingIntent(R.id.widget_btn_loop, getPendingIntent(context, "ACTION_LOOP"))
         views.setOnClickPendingIntent(R.id.widget_btn_shuffle, getPendingIntent(context, "ACTION_SHUFFLE"))
-        views.setOnClickPendingIntent(R.id.widget_btn_mode, getPendingIntent(context, "ACTION_TOGGLE_MODE"))
+        views.setOnClickPendingIntent(R.id.widget_btn_refresh, getPendingIntent(context, "ACTION_REFRESH"))
 
         val searchIntent = Intent(context, MainActivity::class.java).apply {
             action = "ACTION_SEARCH"
@@ -88,16 +88,23 @@ class MediaWidgetProvider : AppWidgetProvider() {
             super.onReceive(context, intent)
             val action = intent.action
             com.example.LogKeeper.log("onReceive action: $action", "MediaWidgetProvider")
-        if (action == "ACTION_TOGGLE_MODE") {
-            val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
-            val currentMode = prefs.getString("mode", "PLAYLIST")
-            val nextMode = if (currentMode == "PLAYLIST") "FOLDERS" else "PLAYLIST"
-            prefs.edit().putString("mode", nextMode).putString("folder_id", null).apply()
-            
+        if (action == "ACTION_REFRESH") {
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val componentName = android.content.ComponentName(context, MediaWidgetProvider::class.java)
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetManager.getAppWidgetIds(componentName), R.id.widget_list)
-        } else if (action in listOf("ACTION_PLAY_PAUSE", "ACTION_PREV", "ACTION_NEXT", "ACTION_LOOP", "ACTION_SHUFFLE")) {
+        } else if (action == "ACTION_OPEN_APP") {
+            val appIntent = android.content.Intent(context, com.example.MainActivity::class.java).apply {
+                this.action = "com.example.ACTION_OPEN_PLAYER"
+                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            context.startActivity(appIntent)
+        } else if (action == "ACTION_PIP") {
+            val appIntent = android.content.Intent(context, com.example.MainActivity::class.java).apply {
+                this.action = "com.example.ACTION_START_PIP"
+                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            context.startActivity(appIntent)
+        } else if (action in listOf("ACTION_PLAY_PAUSE", "ACTION_PREV", "ACTION_NEXT", "ACTION_LOOP", "ACTION_SHUFFLE", "ACTION_MINIPLAYER", "ACTION_CLOSE")) {
             val serviceIntent = Intent("com.example.ACTION_WIDGET_COMMAND")
             serviceIntent.setPackage(context.packageName)
             serviceIntent.putExtra("command", action)

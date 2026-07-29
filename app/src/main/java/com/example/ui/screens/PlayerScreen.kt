@@ -1484,7 +1484,7 @@ fun PlayerScreen(
                             var showToolsStack by remember { mutableStateOf(false) }
 
                             val RightTools: @Composable () -> Unit = {
-                                IconButton(onClick = {
+                                IconButton(modifier = Modifier.size(36.dp), onClick = {
                                     val nextMode = when (repeatMode) {
                                         androidx.media3.common.Player.REPEAT_MODE_OFF -> androidx.media3.common.Player.REPEAT_MODE_ALL
                                         androidx.media3.common.Player.REPEAT_MODE_ALL -> androidx.media3.common.Player.REPEAT_MODE_ONE
@@ -1494,18 +1494,19 @@ fun PlayerScreen(
                                     mediaController?.repeatMode = nextMode
                                 }) {
                                     Icon(
+                                        modifier = Modifier.size(20.dp),
                                         imageVector = if (repeatMode == androidx.media3.common.Player.REPEAT_MODE_ONE) androidx.compose.material.icons.Icons.Filled.RepeatOne else androidx.compose.material.icons.Icons.Filled.Repeat,
                                         contentDescription = "Repeat",
                                         tint = if (repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF) androidx.compose.ui.graphics.Color(0xFF2196F3) else androidx.compose.ui.graphics.Color.White
                                     )
                                 }
-                                IconButton(onClick = { 
+                                IconButton(modifier = Modifier.size(36.dp), onClick = { 
                                     backgroundPlayEnabled = !backgroundPlayEnabled
                                     Toast.makeText(context, "Background play " + if (backgroundPlayEnabled) "enabled" else "disabled", Toast.LENGTH_SHORT).show()
                                 }) {
-                                    Icon(Icons.Filled.Headphones, contentDescription = "Background play", tint = if (backgroundPlayEnabled) Color(0xFF2196F3) else Color.White)
+                                    Icon(modifier = Modifier.size(20.dp), imageVector = Icons.Filled.Headphones, contentDescription = "Background play", tint = if (backgroundPlayEnabled) Color(0xFF2196F3) else Color.White)
                                 }
-                                IconButton(onClick = {
+                                IconButton(modifier = Modifier.size(36.dp), onClick = {
                                     resizeMode = when (resizeMode) {
                                         androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
                                         androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
@@ -1519,9 +1520,9 @@ fun PlayerScreen(
                                         androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> androidx.compose.material.icons.Icons.Filled.Crop
                                         else -> androidx.compose.material.icons.Icons.Filled.FullscreenExit
                                     }
-                                    Icon(resizeIcon, contentDescription = "Aspect Ratio", tint = Color.White)
+                                    Icon(resizeIcon, modifier = Modifier.size(20.dp), contentDescription = "Aspect Ratio", tint = Color.White)
                                 }
-                                IconButton(onClick = {
+                                IconButton(modifier = Modifier.size(36.dp), onClick = {
                                     if (android.provider.Settings.canDrawOverlays(context)) {
                                         val overlayIntent = android.content.Intent("com.example.ACTION_WIDGET_COMMAND")
                                         overlayIntent.putExtra("command", "ACTION_OVERLAY")
@@ -1536,9 +1537,9 @@ fun PlayerScreen(
                                         context.startActivity(intent)
                                     }
                                 }) {
-                                    Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_playlist), contentDescription = "Minimize to Mini Player", tint = Color.White, modifier = Modifier.size(24.dp))
+                                    Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_playlist), contentDescription = "Minimize to Mini Player", tint = Color.White, modifier = Modifier.size(20.dp))
                                 }
-                                IconButton(onClick = {
+                                IconButton(modifier = Modifier.size(36.dp), onClick = {
                                     val appOps = context.getSystemService(android.content.Context.APP_OPS_SERVICE) as android.app.AppOpsManager
                                     val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                                         appOps.unsafeCheckOpNoThrow(android.app.AppOpsManager.OPSTR_PICTURE_IN_PICTURE, android.os.Process.myUid(), context.packageName)
@@ -1580,7 +1581,7 @@ fun PlayerScreen(
                                         }
                                     }
                                 }) {
-                                    Icon(Icons.Filled.PictureInPictureAlt, contentDescription = "PiP", tint = Color.White)
+                                    Icon(modifier = Modifier.size(20.dp), imageVector = Icons.Filled.PictureInPictureAlt, contentDescription = "PiP", tint = Color.White)
                                 }
                             }
                             

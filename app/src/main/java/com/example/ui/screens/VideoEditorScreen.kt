@@ -529,6 +529,7 @@ fun VideoEditorScreen(
                     }
                 }
 
+                @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
                 Slider(
                     value = if (durationMs > 0) (currentPositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f,
                     onValueChange = { 
@@ -539,7 +540,55 @@ fun VideoEditorScreen(
                     onValueChangeFinished = {
                         isDragging = false
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    track = { sliderState ->
+                        val isTrimMode = currentTool == VideoEditorTool.TRIM
+                        val startFraction = if (isTrimMode && editState.trimStartMs > 0) editState.trimStartMs.toFloat() / durationMs.toFloat() else 0f
+                        val endFraction = if (isTrimMode && editState.trimEndMs > 0) editState.trimEndMs.toFloat() / durationMs.toFloat() else 1f
+                        
+                        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxWidth().height(4.dp)) {
+                            val startX = startFraction * size.width
+                            val endX = endFraction * size.width
+                            
+                            if (isTrimMode) {
+                                // Inactive track only within cut
+                                drawLine(
+                                    color = Color.Gray.copy(alpha = 0.5f),
+                                    start = androidx.compose.ui.geometry.Offset(startX, size.height / 2),
+                                    end = androidx.compose.ui.geometry.Offset(endX, size.height / 2),
+                                    strokeWidth = 4.dp.toPx(),
+                                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                )
+                                
+                                val currentX = (sliderState.value * size.width).coerceIn(startX, endX)
+                                if (currentX > startX) {
+                                    drawLine(
+                                        color = Color(0xFF2196F3),
+                                        start = androidx.compose.ui.geometry.Offset(startX, size.height / 2),
+                                        end = androidx.compose.ui.geometry.Offset(currentX, size.height / 2),
+                                        strokeWidth = 4.dp.toPx(),
+                                        cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                    )
+                                }
+                            } else {
+                                // Default track
+                                drawLine(
+                                    color = Color.Gray.copy(alpha = 0.5f),
+                                    start = androidx.compose.ui.geometry.Offset(0f, size.height / 2),
+                                    end = androidx.compose.ui.geometry.Offset(size.width, size.height / 2),
+                                    strokeWidth = 4.dp.toPx(),
+                                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                )
+                                drawLine(
+                                    color = Color(0xFF2196F3),
+                                    start = androidx.compose.ui.geometry.Offset(0f, size.height / 2),
+                                    end = androidx.compose.ui.geometry.Offset(sliderState.value * size.width, size.height / 2),
+                                    strokeWidth = 4.dp.toPx(),
+                                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                )
+                            }
+                        }
+                    }
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -603,8 +652,20 @@ fun VideoEditorScreen(
                                 val end = editState.trimEndMs.toFloat().coerceIn(start, durationMs.toFloat()).takeIf { it > 0 } ?: durationMs.toFloat()
                                 
                                 Column(modifier = Modifier.fillMaxWidth()) {
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                         Text(formatMs(start.toLong()), style = MaterialTheme.typography.labelMedium)
+                                        
+                                        var customCutText by remember { mutableStateOf("") }
+                                        androidx.compose.foundation.text.BasicTextField(
+                                            value = if (customCutText.isEmpty()) "Cut: ${formatMs((end - start).toLong())}" else customCutText,
+                                            onValueChange = { customCutText = it },
+                                            textStyle = MaterialTheme.typography.labelMedium.copy(
+                                                color = MaterialTheme.colorScheme.primary,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                            ),
+                                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                                        )
+                                        
                                         Text(formatMs(end.toLong()), style = MaterialTheme.typography.labelMedium)
                                     }
                                     RangeSlider(

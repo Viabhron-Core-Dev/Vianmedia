@@ -33,27 +33,29 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     override fun onDataSetChanged() {
         com.example.LogKeeper.log("onDataSetChanged started", "MediaWidgetFactory")
         try {
+        val player = PlayerManager.exoPlayer
+        
+        if (player == null || player.currentTimeline.isEmpty || !player.isPlaying) {
+            mode = "FOLDERS"
+        } else {
+            mode = "PLAYLIST"
+        }
+        
         val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
-        mode = prefs.getString("mode", "PLAYLIST") ?: "PLAYLIST"
         folderId = prefs.getString("folder_id", null)
         
         if (mode == "PLAYLIST") {
-            val player = PlayerManager.exoPlayer
-            if (player != null) {
-                val items = mutableListOf<MediaItem>()
-                for (i in 0 until player.currentTimeline.windowCount) {
-                    val window = androidx.media3.common.Timeline.Window()
-                    player.currentTimeline.getWindow(i, window)
-                    items.add(window.mediaItem)
-                }
-                playlist = items
-            } else {
-                playlist = emptyList()
+            val items = mutableListOf<MediaItem>()
+            for (i in 0 until player!!.currentTimeline.windowCount) {
+                val window = androidx.media3.common.Timeline.Window()
+                player.currentTimeline.getWindow(i, window)
+                items.add(window.mediaItem)
             }
+            playlist = items
         } else if (mode == "FOLDERS") {
             runBlocking {
                 val repo = MediaRepository(context)
-                val allFolders = repo.getMediaFolders() // simplified
+                val allFolders = repo.getMediaFolders()
                 folders = allFolders
                 
                 if (folderId != null) {
