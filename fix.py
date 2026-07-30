@@ -1,7 +1,7 @@
 with open("app/src/main/java/com/example/service/PlaybackService.kt", "r") as f:
     content = f.read()
-if "PlayerManager.release()" in content:
-    content = content.replace("PlayerManager.release()", "player.release()")
+if "player.release()" in content:
+    content = content.replace("player.release()", "PlayerManager.release()")
     with open("app/src/main/java/com/example/service/PlaybackService.kt", "w") as f:
         f.write(content)
-    print("Reverted")
+    print("Replaced")

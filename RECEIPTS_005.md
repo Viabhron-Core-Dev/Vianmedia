@@ -14,3 +14,8 @@
 - Modified `MediaWidgetService.kt` to conditionally show folder list or playlist based on `isPlaying` and queue state.
 - Added `ACTION_PIP` button in `widget_media.xml` and wired to `MediaWidgetProvider.kt`.
 - Updated `MainActivity.kt` to handle `ACTION_START_PIP` for launching PiP from Widget.
+- 2026-07-30T02:18:00Z
+- "Sometimes video opened in app from another app the player is empty like in image"
+- app/src/main/java/com/example/ui/navigation/AppNavigation.kt, app/src/main/java/com/example/service/PlaybackService.kt
+- Fixed empty player issue caused by double navigation overlap in AppNavigation by removing dynamic startDestination and making the deep-link route trigger safely pop the root node first. Fixed a ghost-player state issue in PlaybackService by delegating `release()` to `PlayerManager` so the global ExoPlayer singleton is properly set to null after the service terminates.
+- Built successfully locally.

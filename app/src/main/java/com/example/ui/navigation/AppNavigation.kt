@@ -33,7 +33,9 @@ fun AppNavigation(initialUris: List<String> = emptyList(), forceAction: String? 
     val settingsManager = remember { SettingsManager.getInstance(context) }
     val navController = rememberNavController()
     
-    val startDest = remember(initialUris, forceAction) {
+    val startDest = if (settingsManager.hasSeenWelcome) "main" else "welcome"
+    
+    val intentDest = remember(initialUris, forceAction) {
         if (initialUris.isNotEmpty()) {
             val mimeType = context.contentResolver.getType(android.net.Uri.parse(initialUris.first()))
             val isImage = mimeType?.startsWith("image/") == true
@@ -64,14 +66,14 @@ fun AppNavigation(initialUris: List<String> = emptyList(), forceAction: String? 
                 val encodedUri = android.util.Base64.encodeToString(initialUris.first().toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)
                 "player/$encodedUri"
             }
-        } else if (settingsManager.hasSeenWelcome) "main" else "welcome"
+        } else null
     }
-    
-    androidx.compose.runtime.LaunchedEffect(initialUris, forceAction) {
-        if (initialUris.isNotEmpty() && forceAction != null) {
-            navController.navigate(startDest) {
+
+    androidx.compose.runtime.LaunchedEffect(intentDest) {
+        if (intentDest != null) {
+            navController.navigate(intentDest) {
+                popUpTo(startDest) { inclusive = false }
                 launchSingleTop = true
-                restoreState = true
             }
         }
     }
@@ -194,8 +196,8 @@ fun AppNavigation(initialUris: List<String> = emptyList(), forceAction: String? 
                         hasNavigatedBackOnce = true
                         val popped = navController.popBackStack()
                         com.example.LogKeeper.log("popBackStack() returned $popped, current backstack size: ${navController.currentBackStack.value.size}", "Navigation")
-                        if (!popped) {
-                            com.example.LogKeeper.log("No backstack entry to pop — finishing Activity", "Navigation")
+                        if (!popped || (initialUris.isNotEmpty() && navController.currentDestination?.route == "main")) {
+                            com.example.LogKeeper.log("No backstack entry to pop or launched via intent — finishing Activity", "Navigation")
                             (context as? android.app.Activity)?.finish()
                         }
                     } else {

@@ -415,7 +415,7 @@ composeView = null
     override fun onDestroy() {
         try { unregisterReceiver(widgetCommandReceiver) } catch (e: Exception) {}
         mediaSession?.run {
-            player.release()
+            PlayerManager.release()
             release()
             mediaSession = null
         }
