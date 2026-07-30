@@ -442,9 +442,8 @@ fun AppNavigation(initialUris: List<String> = emptyList(), forceAction: String? 
         } else if (wasFFmpegRunning) {
             wasFFmpegRunning = false
             android.widget.Toast.makeText(context, "Media processing complete!", android.widget.Toast.LENGTH_SHORT).show()
-            if (initialUris.isNotEmpty()) {
-                (context as? android.app.Activity)?.finish()
-            }
+            // Do not auto-finish here so VideoEditor can show the preview dialog.
+            // If it's batch compression, they can dismiss the modal.
         }
     }
 }

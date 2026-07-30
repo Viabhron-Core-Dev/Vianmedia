@@ -33,39 +33,58 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     override fun onDataSetChanged() {
         com.example.LogKeeper.log("onDataSetChanged started", "MediaWidgetFactory")
         try {
-        val player = PlayerManager.exoPlayer
-        
-        if (player == null || player.currentTimeline.isEmpty || !player.isPlaying) {
-            mode = "FOLDERS"
-        } else {
-            mode = "PLAYLIST"
-        }
-        
-        val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
-        folderId = prefs.getString("folder_id", null)
-        
-        if (mode == "PLAYLIST") {
+            var isPlayerActive = false
             val items = mutableListOf<MediaItem>()
-            for (i in 0 until player!!.currentTimeline.windowCount) {
-                val window = androidx.media3.common.Timeline.Window()
-                player.currentTimeline.getWindow(i, window)
-                items.add(window.mediaItem)
-            }
-            playlist = items
-        } else if (mode == "FOLDERS") {
+            
+            // ExoPlayer must be accessed on its application thread (main thread)
             runBlocking {
-                val repo = MediaRepository(context)
-                val allFolders = repo.getMediaFolders()
-                folders = allFolders
-                
-                if (folderId != null) {
-                    folderItems = folders.find { it.id == folderId }?.mediaItems ?: emptyList()
-                } else {
-                    folderItems = emptyList()
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    val player = PlayerManager.exoPlayer
+                    if (player != null && !player.currentTimeline.isEmpty) {
+                        isPlayerActive = true
+                        for (i in 0 until player.currentTimeline.windowCount) {
+                            val window = androidx.media3.common.Timeline.Window()
+                            player.currentTimeline.getWindow(i, window)
+                            items.add(window.mediaItem)
+                        }
+                    }
                 }
             }
-        }
-        com.example.LogKeeper.log("onDataSetChanged finished successfully. Mode: $mode", "MediaWidgetFactory")
+
+            if (isPlayerActive) {
+                mode = "PLAYLIST"
+                playlist = items
+            } else {
+                mode = "FOLDERS"
+            }
+            
+            val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
+            folderId = prefs.getString("folder_id", null)
+            
+            if (mode == "FOLDERS") {
+                runBlocking {
+                    val repo = MediaRepository(context)
+                    val allFolders = repo.getMediaFolders()
+                    val searchQuery = prefs.getString("search_query", "") ?: ""
+                    
+                    if (searchQuery.isNotBlank()) {
+                        val allItems = allFolders.flatMap { it.mediaItems }
+                        val filteredItems = allItems.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                        folders = emptyList()
+                        folderId = "search_results" // Virtual folder
+                        folderItems = filteredItems
+                    } else {
+                        folders = allFolders
+                        if (folderId != null && folderId != "search_results") {
+                            folderItems = folders.find { it.id == folderId }?.mediaItems ?: emptyList()
+                        } else {
+                            folderItems = emptyList()
+                            folderId = null
+                        }
+                    }
+                }
+            }
+            com.example.LogKeeper.log("onDataSetChanged finished successfully. Mode: $mode", "MediaWidgetFactory")
         } catch (e: Exception) {
             com.example.LogKeeper.logError("MediaWidgetFactory", "Error in onDataSetChanged", e)
         }
@@ -104,7 +123,11 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 views.setOnClickFillInIntent(R.id.widget_item_root, fillInIntent)
             } else {
                 if (position == 0) {
-                    views.setTextViewText(R.id.widget_item_title, "[Back to Folders]")
+                    if (folderId == "search_results") {
+                        views.setTextViewText(R.id.widget_item_title, "[Clear Search]")
+                    } else {
+                        views.setTextViewText(R.id.widget_item_title, "[Back to Folders]")
+                    }
                     val fillInIntent = Intent().putExtra("WIDGET_ACTION", "BACK_FOLDER")
                     views.setOnClickFillInIntent(R.id.widget_item_root, fillInIntent)
                 } else {

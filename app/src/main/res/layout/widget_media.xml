@@ -26,85 +26,153 @@
             android:maxLines="1"
             android:ellipsize="end"
             android:textStyle="bold" />
-            
-    </LinearLayout>
 
+        <ImageView
+            android:id="@+id/widget_btn_refresh"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="8dp"
+            android:src="@android:drawable/ic_popup_sync"
+            android:background="@drawable/widget_btn_bg"
+            android:scaleType="centerInside" />
+
+        <ImageView
+            android:id="@+id/widget_btn_pip"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="8dp"
+            android:src="@android:drawable/ic_menu_gallery"
+            android:background="@drawable/widget_btn_bg"
+            android:scaleType="centerInside" />
+
+        <ImageView
+            android:id="@+id/widget_btn_expand"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="8dp"
+            android:src="@android:drawable/ic_menu_view"
+            android:background="@drawable/widget_btn_bg"
+            android:scaleType="centerInside" />
+    </LinearLayout>
+    
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="@drawable/widget_divider_solid" />
 
-    <!-- Playback Controls -->
+    <!-- Seekbar / ProgressBar -->
+    <ProgressBar
+        android:id="@+id/widget_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:progress="0"
+        android:max="100"
+        android:progressTint="#3F51B5" />
+
+    <!-- Controls Row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center"
-        android:paddingTop="8dp"
-        android:paddingBottom="4dp">
+        android:gravity="center_vertical"
+        android:padding="8dp">
 
-        <ImageView
-            android:id="@+id/widget_btn_prev"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@drawable/ic_widget_prev"
-            android:background="@drawable/widget_btn_bg"
-            android:scaleType="centerInside" />
+        <!-- Playback Controls -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <ImageView
-            android:id="@+id/widget_btn_play"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:src="@drawable/ic_widget_play"
-            android:background="@drawable/widget_btn_bg"
-            android:scaleType="centerInside" />
+            <ImageView
+                android:id="@+id/widget_btn_prev"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_widget_prev"
+                android:background="@drawable/widget_btn_bg"
+                android:scaleType="centerInside" />
 
-        <ImageView
-            android:id="@+id/widget_btn_next"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@drawable/ic_widget_next"
-            android:background="@drawable/widget_btn_bg"
-            android:scaleType="centerInside" />
+            <ImageView
+                android:id="@+id/widget_btn_play"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_widget_play"
+                android:background="@drawable/widget_btn_bg"
+                android:scaleType="centerInside" />
+
+            <ImageView
+                android:id="@+id/widget_btn_next"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_widget_next"
+                android:background="@drawable/widget_btn_bg"
+                android:scaleType="centerInside" />
+                
+            <ImageView
+                android:id="@+id/widget_btn_loop"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="8dp"
+                android:src="@drawable/ic_widget_loop"
+                android:background="@drawable/widget_btn_bg"
+                android:scaleType="centerInside" />
+
+            <ImageView
+                android:id="@+id/widget_btn_shuffle"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="4dp"
+                android:src="@drawable/ic_widget_shuffle"
+                android:background="@drawable/widget_btn_bg"
+                android:scaleType="centerInside" />
+        </LinearLayout>
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1" />
+
+        <!-- Bottom right corner buttons: Close/Stop, Search, Open Mini Player -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            
+            <ImageView
+                android:id="@+id/widget_btn_search"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@android:drawable/ic_menu_search"
+                android:background="@drawable/widget_btn_bg"
+                android:scaleType="centerInside" />
+
+            <ImageView
+                android:id="@+id/widget_btn_miniplayer"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="8dp"
+                android:src="@android:drawable/ic_menu_crop"
+                android:background="@drawable/widget_btn_bg"
+                android:scaleType="centerInside" />
+                
+            <ImageView
+                android:id="@+id/widget_btn_close"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="8dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:background="@drawable/widget_btn_bg"
+                android:scaleType="centerInside" />
+
+        </LinearLayout>
     </LinearLayout>
-
-    <!-- Secondary Controls (Loop, Shuffle, Refresh) -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:paddingBottom="8dp">
-
-        <ImageView
-            android:id="@+id/widget_btn_loop"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@drawable/ic_widget_loop"
-            android:background="@drawable/widget_btn_bg"
-            android:scaleType="centerInside" />
-
-        <ImageView
-            android:id="@+id/widget_btn_shuffle"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_marginStart="16dp"
-            android:src="@drawable/ic_widget_shuffle"
-            android:background="@drawable/widget_btn_bg"
-            android:scaleType="centerInside" />
-
-        <ImageView
-            android:id="@+id/widget_btn_refresh"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_marginStart="16dp"
-            android:src="@android:drawable/ic_popup_sync"
-            android:background="@drawable/widget_btn_bg"
-            android:scaleType="centerInside" />
-    </LinearLayout>
-
+    
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="1dp"
@@ -119,21 +187,4 @@
         android:divider="@drawable/widget_divider"
         android:dividerHeight="1dp" />
 
-    <!-- Search Button -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="4dp">
-
-        <TextView
-            android:id="@+id/widget_btn_search"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Search Library"
-            android:textSize="12sp"
-            android:textColor="#19202D"
-            android:gravity="center"
-            android:padding="8dp"
-            android:background="@drawable/widget_search_bg" />
-    </LinearLayout>
 </LinearLayout>

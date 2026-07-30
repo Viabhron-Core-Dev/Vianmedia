@@ -27,6 +27,7 @@ object FFmpegStatus {
     var totalFiles by mutableStateOf(0)
     var currentFile by mutableStateOf(0)
     var currentProgress by mutableStateOf("")
+    var lastOutputUri by mutableStateOf<String?>(null)
 }
 
 class FFmpegService : Service() {
@@ -76,6 +77,7 @@ class FFmpegService : Service() {
         startForeground(2, notification)
 
         FFmpegStatus.isRunning = true
+        FFmpegStatus.lastOutputUri = null
         FFmpegStatus.totalFiles = uris.size
         FFmpegStatus.currentFile = 0
         FFmpegStatus.currentProgress = "Starting..."
@@ -246,7 +248,7 @@ class FFmpegService : Service() {
             // 2. Move out to SAF output folder
             val origName = originalNames?.getOrNull(count) ?: getOriginalFileName(uri)
             val fileName = "${origName}_edited.$outputExt"
-            val outStream = getOutputStream(outputUriStr, fileName, getMimeType(outputExt))
+            val (finalUri, outStream) = getOutputStreamAndUri(outputUriStr, fileName, getMimeType(outputExt))
             if (outStream != null) {
                 try {
                     FFmpegStatus.currentProgress = "Saving output file..."
@@ -271,6 +273,7 @@ class FFmpegService : Service() {
                         }
                     }
                     LogKeeper.log("Saved to output folder: $fileName", "FFmpegService")
+                    FFmpegStatus.lastOutputUri = finalUri?.toString()
                 } catch (e: Exception) {
                     LogKeeper.logError("FFmpegService", "Failed to copy output file to SAF", e)
                 }
@@ -330,7 +333,7 @@ class FFmpegService : Service() {
         return result?.substringBeforeLast(".") ?: "edited_${System.currentTimeMillis()}"
     }
 
-    private fun getOutputStream(outputUriStr: String?, fileName: String, mimeType: String): java.io.OutputStream? {
+    private fun getOutputStreamAndUri(outputUriStr: String?, fileName: String, mimeType: String): Pair<Uri?, java.io.OutputStream?> {
         if (outputUriStr != null) {
             try {
                 val treeUri = Uri.parse(outputUriStr)
@@ -343,13 +346,12 @@ class FFmpegService : Service() {
                     fileName
                 )
                 if (newUri != null) {
-                    return contentResolver.openOutputStream(newUri)
+                    return Pair(newUri, contentResolver.openOutputStream(newUri))
                 }
             } catch (e: Exception) {
                 LogKeeper.logError("FFmpegService", "Failed SAF create", e)
             }
         }
-
         // Fallback to media store
         val contentValues = android.content.ContentValues().apply {
             put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
@@ -365,7 +367,7 @@ class FFmpegService : Service() {
             if (mimeType.startsWith("audio")) android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI else android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         }
         val uri = contentResolver.insert(collection, contentValues)
-        return uri?.let { contentResolver.openOutputStream(it) }
+        return Pair(uri, uri?.let { contentResolver.openOutputStream(it) })
     }
 
     private fun createNotificationChannel() {

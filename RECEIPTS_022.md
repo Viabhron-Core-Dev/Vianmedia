@@ -1,0 +1,13 @@
+- Timestamp: 2026-07-29T13:02:00-07:00
+- Summary: Implemented post-export preview modal.
+- Files touched:
+  - app/src/main/java/com/example/service/FFmpegService.kt
+  - app/src/main/java/com/example/ui/navigation/AppNavigation.kt
+  - app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt
+- What was actually done:
+  - Added `lastOutputUri` to `FFmpegStatus` to track the generated file URI.
+  - Intercepted FFmpeg export completion in `VideoEditorScreen` to show a modal dialog.
+  - Modal shows a portrait 200x300 ExoPlayer of the newly exported file.
+  - Modal includes an "Edit Finished File" button that launches `MainActivity` with action `edit` to recursively edit the result.
+  - Disabled `AppNavigation` auto-finish behavior for `VideoEditorScreen` so the modal can be shown.
+- Verification: compiling.

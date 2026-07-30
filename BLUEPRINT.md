@@ -1,26 +1,37 @@
-# Blueprint
+# BLUEPRINT
 
-## Architecture
-- **UI Framework**: Jetpack Compose (Material 3)
-- **Data Persistence**: Room Database for playlist and library caching
-- **Media Player**: Media3 (ExoPlayer) with foreground `PlaybackService`
-- **Dependency Injection**: Constructor injection
+## Phase 1: Foundation (Completed)
+- Setup basic app structure and dependencies
+- Implement ExoPlayer/Media3 for video and audio playback
+- Create unified PlayerScreen for all media types
+- Integrate File Explorer for media selection
 
-## Components
-- **MainScreen**: Bottom navigation hub for Library, Playlists, and Player
-- **LibraryScreen**: Scans local files, groups into folders, selection logic
-- **PlaylistsScreen**: Displays saved playlists
-- **PlaylistDetailScreen**: Displays items, manual drag-and-drop ordering, multi-select deletion
-- **PlayerScreen**: Main video/audio player view, Media3 bindings, brightness slider, PiP controls
-- **MiniPlayerOverlay**: Floating draggable overlay, persists state when navigating, fold/unfold logic
-- **MediaWidgetProvider**: Home screen RemoteViews widget
+## Phase 2: Core Features (Completed)
+- Implement background playback service (MediaSessionService)
+- Add Picture-in-Picture (PiP) support
+- Add Mini Player overlay permission flow and basic service overlay
+- Add Media Widget for home screen control and file browsing
+- Support subtitle tracks (SRT, VTT) and custom font settings
+- Add volume booster (LoudnessEnhancer)
 
-## Recent Changes
-- Fixed Home Screen widget inflation crash in Launcher (which appeared as a transparent broken box) by replacing unsupported `<View>` tags with `<FrameLayout>` and replacing inline hex colors with `@drawable` resources.
-- Connected widget (`MediaWidgetProvider` and `MediaWidgetService`) to `LogKeeper` for deep error tracking.
-- Fixed blank/crashing home screen widget by removing unsupported `RemoteViews` attributes (`backgroundTint`, `tint`, `<Button>`).
-- Styled the App Widget to perfectly match the Mini Player theme (LightBlueBackground `#F5F7FA`, 12dp rounded corners, `#19202D` dark text/icons, subtle primary borders).
-- Fixed playlist reorder dragging wrong item by keying `pointerInput` to `item.id` and `index`.
-- Added auto-cleanup lifecycle for the "Temp Current" playlist (deletes itself when playback finishes or player is stopped).
-- Zoomed in on the Mini Player floating icon, cropping the blue background to focus on the play button.
-- Made Mini Player backgrounds completely opaque to fix visual bleeding (pink tinting) from underlying views.
+## Phase 3: Video & Photo Editing (Completed/In Progress)
+- Implement `VideoEditorScreen` with basic UI layout
+- Add FFmpeg integration for video processing
+- Implement Crop tool (Custom aspect ratio support with draggable corners)
+- Implement Trim/Cut tool (Timeline track with skip-middle cut functionality)
+- Implement Video Conversion/Export tool (Resolution, FPS, ultrafast presets)
+- Refine RightTools UI layout in `PlayerScreen` for compactness
+
+## Phase 4: UI/UX Refinement
+- Improve visual feedback for widget actions
+- Ensure thread safety in all background operations
+
+## Progress Update
+- Fixed widget thread exceptions and interaction dead-states by utilizing MediaController async initialization.
+- Fixed widget incorrectly falling back to File Explorer mode when the media player was paused.
+- Refactored Widget layout to include PiP, Expand, Close, Open MiniPlayer, and Search controls.
+- Created translucent WidgetSearchActivity to perform widget-based file search without triggering full UI.
+- Implemented tap-and-type minute adjustments for start and end times in the Trim/Cut tool.
+- Dynamically swapped the RangeSlider track colors so that in Cut (Remove Middle) mode, the active track visually fills the outside ranges instead of the middle.
+- Implemented a post-export modal dialog in the Video Editor with a portrait preview player.
+- Added an "Edit Finished File" button to the preview modal to recursively open the exported video back into the editor.

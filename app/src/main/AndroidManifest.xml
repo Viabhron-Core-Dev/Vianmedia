@@ -138,6 +138,12 @@
             android:foregroundServiceType="dataSync"
             android:exported="false" />
         
+        <activity
+            android:name=".widget.WidgetSearchActivity"
+            android:theme="@style/Theme.Transparent"
+            android:excludeFromRecents="true"
+            android:exported="false" />
+
         <receiver android:name=".widget.MediaWidgetProvider" android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
