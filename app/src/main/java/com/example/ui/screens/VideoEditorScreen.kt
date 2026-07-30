@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -48,10 +49,14 @@ import kotlinx.coroutines.withContext
 import com.example.LogKeeper
 
 data class VideoEditState(
-
     val trimStartMs: Long = 0L,
     val trimEndMs: Long = 0L,
     val isCutMode: Boolean = false,
+    val isDoubleTrim: Boolean = false,
+    val doubleTrimStart1Ms: Long = 0L,
+    val doubleTrimEnd1Ms: Long = 0L,
+    val doubleTrimStart2Ms: Long = 0L,
+    val doubleTrimEnd2Ms: Long = 0L,
     val cutStartMs: Long = 0L,
     val cutEndMs: Long = 0L,
     val speed: Float = 1.0f,
@@ -519,23 +524,43 @@ fun VideoEditorScreen(
                 var currentPositionMs by remember { mutableLongStateOf(0L) }
                 var isDragging by remember { mutableStateOf(false) }
 
-                LaunchedEffect(exoPlayer, editState.trimStartMs, editState.trimEndMs, editState.isCutMode) {
+                LaunchedEffect(exoPlayer, editState) {
                     while (true) {
                         if (!isDragging) {
                             currentPositionMs = exoPlayer?.currentPosition ?: 0L
-                            if (!editState.isCutMode) {
-                                if (editState.trimEndMs > 0 && currentPositionMs >= editState.trimEndMs) {
-                                    exoPlayer?.seekTo(editState.trimStartMs)
-                                    currentPositionMs = editState.trimStartMs
-                                } else if (currentPositionMs < editState.trimStartMs) {
-                                    exoPlayer?.seekTo(editState.trimStartMs)
-                                    currentPositionMs = editState.trimStartMs
+                            if (editState.isDoubleTrim) {
+                                val ds1 = editState.doubleTrimStart1Ms.coerceIn(0L, durationMs)
+                                val de1 = editState.doubleTrimEnd1Ms.coerceIn(ds1, durationMs).takeIf { it > 0 } ?: (durationMs / 2)
+                                val ds2 = editState.doubleTrimStart2Ms.coerceIn(de1, durationMs)
+                                val de2 = editState.doubleTrimEnd2Ms.coerceIn(ds2, durationMs).takeIf { it > 0 } ?: durationMs
+                                
+                                if (currentPositionMs >= de1 && currentPositionMs < ds2) {
+                                    exoPlayer?.seekTo(ds2)
+                                    currentPositionMs = ds2
+                                } else if (currentPositionMs >= de2) {
+                                    exoPlayer?.seekTo(ds1)
+                                    currentPositionMs = ds1
+                                } else if (currentPositionMs < ds1) {
+                                    exoPlayer?.seekTo(ds1)
+                                    currentPositionMs = ds1
+                                }
+                            } else if (!editState.isCutMode) {
+                                val start = editState.trimStartMs.coerceIn(0L, durationMs)
+                                val end = editState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
+                                if (end > 0 && currentPositionMs >= end) {
+                                    exoPlayer?.seekTo(start)
+                                    currentPositionMs = start
+                                } else if (currentPositionMs < start) {
+                                    exoPlayer?.seekTo(start)
+                                    currentPositionMs = start
                                 }
                             } else {
                                 // In cut mode, we skip the middle
-                                if (currentPositionMs >= editState.trimStartMs && currentPositionMs < editState.trimEndMs) {
-                                    exoPlayer?.seekTo(editState.trimEndMs)
-                                    currentPositionMs = editState.trimEndMs
+                                val start = editState.trimStartMs.coerceIn(0L, durationMs)
+                                val end = editState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
+                                if (currentPositionMs >= start && currentPositionMs < end) {
+                                    exoPlayer?.seekTo(end)
+                                    currentPositionMs = end
                                 }
                             }
                         }
@@ -544,72 +569,104 @@ fun VideoEditorScreen(
                 }
 
                 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+                val isTrimMode = currentTool == VideoEditorTool.TRIM
+                
+                var virtualDurationMs = durationMs
+                var virtualPositionMs = currentPositionMs
+                
+                if (isTrimMode) {
+                    if (editState.isDoubleTrim) {
+                        val ds1 = editState.doubleTrimStart1Ms.coerceIn(0L, durationMs)
+                        val de1 = editState.doubleTrimEnd1Ms.coerceIn(ds1, durationMs).takeIf { it > 0 } ?: (durationMs / 2)
+                        val ds2 = editState.doubleTrimStart2Ms.coerceIn(de1, durationMs)
+                        val de2 = editState.doubleTrimEnd2Ms.coerceIn(ds2, durationMs).takeIf { it > 0 } ?: durationMs
+                        
+                        val dur1 = (de1 - ds1).coerceAtLeast(0)
+                        val dur2 = (de2 - ds2).coerceAtLeast(0)
+                        virtualDurationMs = dur1 + dur2
+                        
+                        virtualPositionMs = when {
+                            currentPositionMs < ds1 -> 0L
+                            currentPositionMs <= de1 -> currentPositionMs - ds1
+                            currentPositionMs < ds2 -> dur1
+                            currentPositionMs <= de2 -> dur1 + (currentPositionMs - ds2)
+                            else -> dur1 + dur2
+                        }
+                    } else if (editState.isCutMode) {
+                        val start = editState.trimStartMs.coerceIn(0L, durationMs)
+                        val end = editState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
+                        
+                        val dur1 = start
+                        val dur2 = (durationMs - end).coerceAtLeast(0)
+                        virtualDurationMs = dur1 + dur2
+                        
+                        virtualPositionMs = when {
+                            currentPositionMs <= start -> currentPositionMs
+                            currentPositionMs < end -> dur1
+                            else -> dur1 + (currentPositionMs - end)
+                        }
+                    } else {
+                        val start = editState.trimStartMs.coerceIn(0L, durationMs)
+                        val end = editState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
+                        
+                        virtualDurationMs = (end - start).coerceAtLeast(0)
+                        
+                        virtualPositionMs = when {
+                            currentPositionMs < start -> 0L
+                            currentPositionMs <= end -> currentPositionMs - start
+                            else -> virtualDurationMs
+                        }
+                    }
+                }
+                
                 Slider(
-                    value = if (durationMs > 0) (currentPositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f,
-                    onValueChange = { 
+                    value = if (virtualDurationMs > 0) (virtualPositionMs.toFloat() / virtualDurationMs.toFloat()).coerceIn(0f, 1f) else 0f,
+                    onValueChange = { value ->
                         isDragging = true
-                        currentPositionMs = (it * durationMs).toLong()
+                        val newVirtualPos = (value * virtualDurationMs).toLong()
+                        var newRealPos = newVirtualPos
+                        
+                        if (isTrimMode) {
+                            if (editState.isDoubleTrim) {
+                                val ds1 = editState.doubleTrimStart1Ms.coerceIn(0L, durationMs)
+                                val de1 = editState.doubleTrimEnd1Ms.coerceIn(ds1, durationMs).takeIf { it > 0 } ?: (durationMs / 2)
+                                val ds2 = editState.doubleTrimStart2Ms.coerceIn(de1, durationMs)
+                                val dur1 = (de1 - ds1).coerceAtLeast(0)
+                                
+                                newRealPos = if (newVirtualPos <= dur1) {
+                                    ds1 + newVirtualPos
+                                } else {
+                                    ds2 + (newVirtualPos - dur1)
+                                }
+                            } else if (editState.isCutMode) {
+                        val start = editState.trimStartMs.coerceIn(0L, durationMs)
+                        val end = editState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
+                                
+                                newRealPos = if (newVirtualPos <= start) {
+                                    newVirtualPos
+                                } else {
+                                    end + (newVirtualPos - start)
+                                }
+                            } else {
+                                val start = editState.trimStartMs.coerceIn(0L, durationMs)
+                                newRealPos = start + newVirtualPos
+                            }
+                        }
+                        
+                        currentPositionMs = newRealPos.coerceIn(0, durationMs)
                         exoPlayer?.seekTo(currentPositionMs)
                     },
                     onValueChangeFinished = {
                         isDragging = false
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    track = { sliderState ->
-                        val isTrimMode = currentTool == VideoEditorTool.TRIM
-                        val startFraction = if (isTrimMode && editState.trimStartMs > 0) editState.trimStartMs.toFloat() / durationMs.toFloat() else 0f
-                        val endFraction = if (isTrimMode && editState.trimEndMs > 0) editState.trimEndMs.toFloat() / durationMs.toFloat() else 1f
-                        
-                        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxWidth().height(4.dp)) {
-                            val startX = startFraction * size.width
-                            val endX = endFraction * size.width
-                            
-                            if (isTrimMode) {
-                                // Inactive track only within cut
-                                drawLine(
-                                    color = Color.Gray.copy(alpha = 0.5f),
-                                    start = androidx.compose.ui.geometry.Offset(startX, size.height / 2),
-                                    end = androidx.compose.ui.geometry.Offset(endX, size.height / 2),
-                                    strokeWidth = 4.dp.toPx(),
-                                    cap = androidx.compose.ui.graphics.StrokeCap.Round
-                                )
-                                
-                                val currentX = (sliderState.value * size.width).coerceIn(startX, endX)
-                                if (currentX > startX) {
-                                    drawLine(
-                                        color = Color(0xFF2196F3),
-                                        start = androidx.compose.ui.geometry.Offset(startX, size.height / 2),
-                                        end = androidx.compose.ui.geometry.Offset(currentX, size.height / 2),
-                                        strokeWidth = 4.dp.toPx(),
-                                        cap = androidx.compose.ui.graphics.StrokeCap.Round
-                                    )
-                                }
-                            } else {
-                                // Default track
-                                drawLine(
-                                    color = Color.Gray.copy(alpha = 0.5f),
-                                    start = androidx.compose.ui.geometry.Offset(0f, size.height / 2),
-                                    end = androidx.compose.ui.geometry.Offset(size.width, size.height / 2),
-                                    strokeWidth = 4.dp.toPx(),
-                                    cap = androidx.compose.ui.graphics.StrokeCap.Round
-                                )
-                                drawLine(
-                                    color = Color(0xFF2196F3),
-                                    start = androidx.compose.ui.geometry.Offset(0f, size.height / 2),
-                                    end = androidx.compose.ui.geometry.Offset(sliderState.value * size.width, size.height / 2),
-                                    strokeWidth = 4.dp.toPx(),
-                                    cap = androidx.compose.ui.graphics.StrokeCap.Round
-                                )
-                            }
-                        }
-                    }
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(formatMs(currentPositionMs), style = MaterialTheme.typography.labelSmall)
-                    Text("Total: ${formatMs(durationMs)}", style = MaterialTheme.typography.labelSmall)
+                    Text(if (isTrimMode) formatMs(virtualPositionMs) else formatMs(currentPositionMs), style = MaterialTheme.typography.labelSmall)
+                    Text("Total: ${if (isTrimMode) formatMs(virtualDurationMs) else formatMs(durationMs)}", style = MaterialTheme.typography.labelSmall)
                 }
             }
 
@@ -664,95 +721,87 @@ fun VideoEditorScreen(
                             VideoEditorTool.TRIM -> {
                                 val start = editState.trimStartMs.toFloat().coerceIn(0f, durationMs.toFloat())
                                 val end = editState.trimEndMs.toFloat().coerceIn(start, durationMs.toFloat()).takeIf { it > 0 } ?: durationMs.toFloat()
+                                val ds1 = editState.doubleTrimStart1Ms.toFloat().coerceIn(0f, durationMs.toFloat())
+                                val de1 = editState.doubleTrimEnd1Ms.toFloat().coerceIn(ds1, durationMs.toFloat()).takeIf { it > 0 } ?: (durationMs.toFloat() / 2f)
+                                val ds2 = editState.doubleTrimStart2Ms.toFloat().coerceIn(de1, durationMs.toFloat())
+                                val de2 = editState.doubleTrimEnd2Ms.toFloat().coerceIn(ds2, durationMs.toFloat()).takeIf { it > 0 } ?: durationMs.toFloat()
                                 
                                 Column(modifier = Modifier.fillMaxWidth()) {
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                        var startText by remember(start) { mutableStateOf(formatMs(start.toLong())) }
-                                        androidx.compose.foundation.text.BasicTextField(
-                                            value = startText,
-                                            onValueChange = { 
-                                                startText = it
-                                                val parts = it.split(":")
-                                                var ms = -1L
-                                                if (parts.size == 2) {
-                                                    ms = ((parts[0].toLongOrNull() ?: 0L) * 60 + (parts[1].toLongOrNull() ?: 0L)) * 1000
-                                                } else if (parts.size == 1) {
-                                                    val parsed = parts[0].toLongOrNull()
-                                                    if (parsed != null) ms = parsed * 1000
-                                                }
-                                                if (ms >= 0) {
-                                                    editState = editState.copy(trimStartMs = ms.coerceIn(0L, end.toLong()))
-                                                    exoPlayer?.seekTo(ms.coerceIn(0L, end.toLong()))
-                                                }
+                                    if (editState.isDoubleTrim) {
+                                        // Double Trim UI (Two parts to keep)
+                                        // Slider 1
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                            Text(text = formatMs(ds1.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).padding(8.dp))
+                                            Text(text = "Cut 1: ${formatMs((de1 - ds1).toLong())}", style = MaterialTheme.typography.labelMedium.copy(color = MaterialTheme.colorScheme.primary))
+                                            Text(text = formatMs(de1.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).padding(8.dp))
+                                        }
+                                        RangeSlider(
+                                            value = ds1..de1,
+                                            onValueChange = { range ->
+                                                editState = editState.copy(doubleTrimStart1Ms = range.start.toLong(), doubleTrimEnd1Ms = range.endInclusive.toLong())
+                                                exoPlayer?.seekTo(if (Math.abs(range.start - ds1) > 100) range.start.toLong() else range.endInclusive.toLong())
                                             },
-                                            textStyle = MaterialTheme.typography.labelMedium.copy(color = MaterialTheme.colorScheme.onSurface, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
-                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(4.dp)).padding(4.dp).widthIn(min = 40.dp)
+                                            valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = androidx.compose.material3.SliderDefaults.colors(activeTrackColor = MaterialTheme.colorScheme.primary, inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant)
                                         )
                                         
-                                        var customCutText by remember { mutableStateOf("") }
-                                        androidx.compose.foundation.text.BasicTextField(
-                                            value = if (customCutText.isEmpty()) "Cut: ${formatMs((end - start).toLong())}" else customCutText,
-                                            onValueChange = { customCutText = it },
-                                            textStyle = MaterialTheme.typography.labelMedium.copy(
-                                                color = MaterialTheme.colorScheme.primary,
-                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                            ),
-                                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                                        // Slider 2
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                            Text(text = formatMs(ds2.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).padding(8.dp))
+                                            Text(text = "Cut 2: ${formatMs((de2 - ds2).toLong())}", style = MaterialTheme.typography.labelMedium.copy(color = MaterialTheme.colorScheme.primary))
+                                            Text(text = formatMs(de2.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).padding(8.dp))
+                                        }
+                                        RangeSlider(
+                                            value = ds2..de2,
+                                            onValueChange = { range ->
+                                                editState = editState.copy(doubleTrimStart2Ms = range.start.toLong(), doubleTrimEnd2Ms = range.endInclusive.toLong())
+                                                exoPlayer?.seekTo(if (Math.abs(range.start - ds2) > 100) range.start.toLong() else range.endInclusive.toLong())
+                                            },
+                                            valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = androidx.compose.material3.SliderDefaults.colors(activeTrackColor = MaterialTheme.colorScheme.primary, inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant)
                                         )
+                                    } else {
+                                        // Single Trim/Cut UI
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                            Text(text = formatMs(start.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).padding(8.dp))
+                                            Text(text = "Cut: ${formatMs((end - start).toLong())}", style = MaterialTheme.typography.labelMedium.copy(color = MaterialTheme.colorScheme.primary))
+                                            Text(text = formatMs(end.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).padding(8.dp))
+                                        }
+                                                                                
+                                        val activeTrackColor = if (editState.isCutMode) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary
+                                        val inactiveTrackColor = if (editState.isCutMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                                         
-                                        var endText by remember(end) { mutableStateOf(formatMs(end.toLong())) }
-                                        androidx.compose.foundation.text.BasicTextField(
-                                            value = endText,
-                                            onValueChange = { 
-                                                endText = it
-                                                val parts = it.split(":")
-                                                var ms = -1L
-                                                if (parts.size == 2) {
-                                                    ms = ((parts[0].toLongOrNull() ?: 0L) * 60 + (parts[1].toLongOrNull() ?: 0L)) * 1000
-                                                } else if (parts.size == 1) {
-                                                    val parsed = parts[0].toLongOrNull()
-                                                    if (parsed != null) ms = parsed * 1000
-                                                }
-                                                if (ms >= 0) {
-                                                    editState = editState.copy(trimEndMs = ms.coerceIn(start.toLong(), durationMs))
-                                                    exoPlayer?.seekTo(ms.coerceIn(start.toLong(), durationMs))
+                                        RangeSlider(
+                                            value = start..end,
+                                            onValueChange = { range ->
+                                                val oldStart = editState.trimStartMs
+                                                editState = editState.copy(
+                                                    trimStartMs = range.start.toLong(),
+                                                    trimEndMs = range.endInclusive.toLong()
+                                                )
+                                                if (Math.abs(range.start.toLong() - oldStart) > 100) {
+                                                    exoPlayer?.seekTo(range.start.toLong())
+                                                } else {
+                                                    exoPlayer?.seekTo(range.endInclusive.toLong())
                                                 }
                                             },
-                                            textStyle = MaterialTheme.typography.labelMedium.copy(color = MaterialTheme.colorScheme.onSurface, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
-                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(4.dp)).padding(4.dp).widthIn(min = 40.dp)
+                                            valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = androidx.compose.material3.SliderDefaults.colors(
+                                                activeTrackColor = activeTrackColor,
+                                                inactiveTrackColor = inactiveTrackColor
+                                            )
                                         )
                                     }
                                     
-                                    val activeTrackColor = if (editState.isCutMode) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary
-                                    val inactiveTrackColor = if (editState.isCutMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-                                    
-                                    RangeSlider(
-                                        value = start..end,
-                                        onValueChange = { range ->
-                                            val oldStart = editState.trimStartMs
-                                            editState = editState.copy(
-                                                trimStartMs = range.start.toLong(),
-                                                trimEndMs = range.endInclusive.toLong()
-                                            )
-                                            if (Math.abs(range.start.toLong() - oldStart) > 100) {
-                                                exoPlayer?.seekTo(range.start.toLong())
-                                            } else {
-                                                exoPlayer?.seekTo(range.endInclusive.toLong())
-                                            }
-                                        },
-                                        valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = androidx.compose.material3.SliderDefaults.colors(
-                                            activeTrackColor = activeTrackColor,
-                                            inactiveTrackColor = inactiveTrackColor
-                                        )
-                                    )
-                                    Row(modifier = Modifier.padding(top = 8.dp)) {
-                                        FilterChip(selected = !editState.isCutMode, onClick = { editState = editState.copy(isCutMode = false) }, label = { Text("Trim (Keep Middle)") })
+                                    Row(modifier = Modifier.padding(top = 8.dp).horizontalScroll(rememberScrollState())) {
+                                        FilterChip(selected = !editState.isCutMode && !editState.isDoubleTrim, onClick = { editState = editState.copy(isCutMode = false, isDoubleTrim = false) }, label = { Text("Keep Middle") })
                                         Spacer(Modifier.width(8.dp))
-                                        FilterChip(selected = editState.isCutMode, onClick = { editState = editState.copy(isCutMode = true) }, label = { Text("Cut (Remove Middle)") })
+                                        FilterChip(selected = editState.isCutMode && !editState.isDoubleTrim, onClick = { editState = editState.copy(isCutMode = true, isDoubleTrim = false) }, label = { Text("Remove Middle") })
+                                        Spacer(Modifier.width(8.dp))
+                                        FilterChip(selected = editState.isDoubleTrim, onClick = { editState = editState.copy(isDoubleTrim = true) }, label = { Text("Keep 2 Parts") })
                                     }
                                 }
                             }
@@ -1061,17 +1110,36 @@ fun VideoEditorScreen(
                         val audioFilterList = mutableListOf<String>()
                         var trimArgs = ""
 
-                        if (editState.isCutMode) {
+                        if (editState.isDoubleTrim) {
+                            // Double Trim (Keep 2 Parts) mode
+                            val ds1 = editState.doubleTrimStart1Ms.coerceIn(0L, durationMs)
+                            val de1 = editState.doubleTrimEnd1Ms.coerceIn(ds1, durationMs).takeIf { it > 0 } ?: (durationMs / 2)
+                            val ds2 = editState.doubleTrimStart2Ms.coerceIn(de1, durationMs)
+                            val de2 = editState.doubleTrimEnd2Ms.coerceIn(ds2, durationMs).takeIf { it > 0 } ?: durationMs
+                            
+                            val start1S = ds1 / 1000f
+                            val end1S = de1 / 1000f
+                            val start2S = ds2 / 1000f
+                            val end2S = de2 / 1000f
+                            filterList.add("select='between(t,$start1S,$end1S)+between(t,$start2S,$end2S)'")
+                            filterList.add("setpts=N/FRAME_RATE/TB")
+                            audioFilterList.add("aselect='between(t,$start1S,$end1S)+between(t,$start2S,$end2S)'")
+                            audioFilterList.add("asetpts=N/SR/TB")
+                        } else if (editState.isCutMode) {
                             // Cut (Remove Middle) mode
-                            val startS = editState.trimStartMs / 1000f
-                            val endS = editState.trimEndMs / 1000f
+                            val start = editState.trimStartMs.coerceIn(0L, durationMs)
+                            val end = editState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
+                            val startS = start / 1000f
+                            val endS = end / 1000f
                             filterList.add("select='not(between(t,$startS,$endS))'")
                             filterList.add("setpts=N/FRAME_RATE/TB")
                             audioFilterList.add("aselect='not(between(t,$startS,$endS))'")
                             audioFilterList.add("asetpts=N/SR/TB")
                         } else {
                             // Trim (Keep Middle) mode
-                            trimArgs = "-ss ${editState.trimStartMs / 1000f} -to ${editState.trimEndMs / 1000f}"
+                            val start = editState.trimStartMs.coerceIn(0L, durationMs)
+                            val end = editState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
+                            trimArgs = "-ss ${start / 1000f} -to ${end / 1000f}"
                         }
 
                         if (editState.speed != 1.0f) {
@@ -1211,7 +1279,7 @@ fun VideoEditorScreen(
                                     factory = { ctx ->
                                         androidx.media3.ui.PlayerView(ctx).apply {
                                             player = previewPlayer
-                                            useController = false
+                                            useController = true
                                             resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                                         }
                                     },

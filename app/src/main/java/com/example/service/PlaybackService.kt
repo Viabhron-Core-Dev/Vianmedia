@@ -440,7 +440,7 @@ composeView = null
                 views.setProgressBar(com.example.R.id.widget_progress, 100, progress, false)
                 
 
-                appWidgetManager.updateAppWidget(appWidgetId, views)
+                appWidgetManager.partiallyUpdateAppWidget(appWidgetId, views)
                 appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, com.example.R.id.widget_list)
             }
         }

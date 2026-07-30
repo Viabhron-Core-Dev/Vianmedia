@@ -19,3 +19,24 @@
 - app/src/main/java/com/example/ui/navigation/AppNavigation.kt, app/src/main/java/com/example/service/PlaybackService.kt
 - Fixed empty player issue caused by double navigation overlap in AppNavigation by removing dynamic startDestination and making the deep-link route trigger safely pop the root node first. Fixed a ghost-player state issue in PlaybackService by delegating `release()` to `PlayerManager` so the global ExoPlayer singleton is properly set to null after the service terminates.
 - Built successfully locally.
+- 2026-07-30T03:25:00Z
+- "The widget is not appearing only square transparent box with fix button in middle. I think widget crashed or something."
+- app/src/main/res/layout/widget_media.xml, app/src/main/java/com/example/service/PlaybackService.kt
+- Fixed widget silent crash (RemoteViews InflationException) caused by the unsupported `<Space>` tag by replacing it with a transparent `<FrameLayout>`. Also fixed the `updateWidgetUI` function in `PlaybackService` to use `partiallyUpdateAppWidget` instead of `updateAppWidget` to preserve button click intents during progress/play state updates.
+- Built successfully locally.
+- 2026-07-30T03:42:00Z
+- "Check video editor cut tool(both middle and normal). Check repo. See the line(progress line) above it is same as below progress bar. Don't want that. Instead want the top one to always be full line but only of cut(middle or normal cut) so that I can get more space to forward on phone. Also the bottom the times text for cut 2 points want it to be like music trimmer. Chevk repo. The total video cut text in middle should not be customisable. Also for middle cut out want one more layer. Like only middle or  to cut on both sides and join. Sort of like say video 10 sec. Don't want 1-2, 5-6 and 9-10. So want 3-4 and 7-8 and both joined into one video. So 2 cutvwithin one tool."
+- app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt
+- Updated the VideoEditorTool.TRIM UI: 1. Removed custom track rendering from the top video progress bar so it's always a full uninterrupted line, giving more width to seek precisely. 2. Changed the trim time input fields (start/end) to look like static monospace TextViews (similar to music trimmer) and disabled editing on the "Cut" duration text. 3. Added a new "Double Trim" (Keep 2 Parts) feature that exposes two range sliders in the UI and adds two `between()` blocks in the FFmpeg `select` / `aselect` filter to join two non-contiguous sections.
+- Built successfully locally.
+- 2026-07-30T03:51:00Z
+- "See image the timeline above see it is of cut so shorter than full video. What I want is same cut but stretched out. This is for preview in cut tool. So even in whole og video of 19 minutes if only 30 sec is total cut(regardless of type of cut) it should be stretched as if whole video time line."
+- app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt
+- Updated the main video player progress slider to use a virtual timeline when in TRIM mode. It dynamically calculates the total kept video duration (`virtualDurationMs`) and maps the current player position (`currentPositionMs`) into a `virtualPositionMs`, spanning the full width of the slider. It also updates the text labels below the slider to show the virtual position and duration, allowing precise seeking within the cropped boundaries. Updated `LaunchedEffect` to correctly skip playback in "Double Trim" mode for seamless previewing.
+- Built successfully locally.
+- 2026-07-30T04:21:00Z
+- "See editor finished preview video. Want a seekbar or progress line for video to check. Also see full app anywhere if pinkish tone is there instead of crisp white like library. Mainly the dialogue things."
+- app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt
+  app/src/main/java/com/example/ui/theme/Theme.kt
+- Updated `VideoEditorScreen.kt` to enable the default ExoPlayer controller (`useController = true`) on the export preview dialog so users can scrub through the final rendered video. Updated `Theme.kt` to explicitly override Material 3 `surfaceContainer` colors (and `surfaceTint`) with `LightBlueSurface` (pure white) to eliminate the default pinkish/purple dynamic surface hue that appears on dialogs and cards.
+- Built successfully locally.

@@ -14,7 +14,13 @@ private val LightBlueColorScheme = lightColorScheme(
     surfaceVariant = LightBlueSurfaceVariant,
     onSurfaceVariant = LightBlueOnSurfaceVariant,
     primaryContainer = LightBluePrimaryContainer,
-    onPrimaryContainer = LightBlueOnPrimaryContainer
+    onPrimaryContainer = LightBlueOnPrimaryContainer,
+    surfaceTint = LightBlueSurface,
+    surfaceContainer = LightBlueSurface,
+    surfaceContainerHigh = LightBlueSurface,
+    surfaceContainerHighest = LightBlueSurface,
+    surfaceContainerLow = LightBlueSurface,
+    surfaceContainerLowest = LightBlueSurface
 )
 
 @Composable
