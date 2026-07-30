@@ -2,6 +2,7 @@
 package com.example.ui.screens
 import kotlinx.coroutines.flow.first
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.widthIn
 
@@ -189,11 +190,11 @@ fun CompactPlayerDialog(
         androidx.compose.material3.Surface(
             shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
             color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
-            modifier = Modifier.widthIn(min = 340.dp, max = 360.dp).padding(horizontal = 16.dp)
+            modifier = Modifier.widthIn(min = 380.dp, max = 440.dp).padding(horizontal = 16.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .heightIn(max = 250.dp)
+                    .heightIn(max = 350.dp)
                     .verticalScroll(androidx.compose.foundation.rememberScrollState())
                     .padding(12.dp)
             ) {
@@ -382,7 +383,7 @@ fun PlayerScreen(
     }
 
 
-    LaunchedEffect(uriString) {
+    LaunchedEffect(uriString, mediaController) {
         val controller = mediaController ?: return@LaunchedEffect
         val settingsManager = com.example.data.SettingsManager.getInstance(context)
         
@@ -1898,7 +1899,7 @@ fun PlayerScreen(
                         
                         IconButton(
                             onClick = { 
-                                val newSpeed = minOf(3.0f, playbackSpeed + 0.1f)
+                                val newSpeed = minOf(4.0f, playbackSpeed + 0.1f)
                                 playbackSpeed = Math.round(newSpeed * 10.0f) / 10.0f
                                 mediaController?.setPlaybackSpeed(playbackSpeed)
                                 settingsManager.savePlaybackSpeed(decodedUriString, playbackSpeed)
@@ -1936,10 +1937,10 @@ fun PlayerScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                     
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
                     ) {
-                        val predefinedSpeeds = listOf(0.2f, 0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f)
+                        val predefinedSpeeds = listOf(0.5f, 1.0f, 1.2f, 1.5f, 2.0f, 2.5f, 3.0f, 4.0f)
                         predefinedSpeeds.forEach { speed ->
                             Box(
                                 modifier = Modifier
@@ -2036,7 +2037,7 @@ fun SpeedSliderRow(
         onValueChange = { 
             onSpeedChange(Math.round(it * 10.0f) / 10.0f)
         },
-        valueRange = 0.1f..3.0f,
+        valueRange = 0.1f..4.0f,
         thumb = {
             Box(
                 modifier = Modifier

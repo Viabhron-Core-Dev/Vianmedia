@@ -40,3 +40,14 @@
   app/src/main/java/com/example/ui/theme/Theme.kt
 - Updated `VideoEditorScreen.kt` to enable the default ExoPlayer controller (`useController = true`) on the export preview dialog so users can scrub through the final rendered video. Updated `Theme.kt` to explicitly override Material 3 `surfaceContainer` colors (and `surfaceTint`) with `LightBlueSurface` (pure white) to eliminate the default pinkish/purple dynamic surface hue that appears on dialogs and cards.
 - Built successfully locally.
+- 2026-07-30T04:55:00Z
+- "Again player empty on open from library. Also player speed panel want wider and even 4x speed."
+- app/src/main/java/com/example/ui/screens/PlayerScreen.kt
+- Updated `LaunchedEffect(uriString)` to `LaunchedEffect(uriString, mediaController)` so that it reacts properly when `mediaController` gets instantiated. Expanded max width of `CompactPlayerDialog` to 440dp. Added 4.0x predefined speed and updated the playback speed logic/slider to support up to 4.0x. Enabled horizontal scroll for the speed chips row to prevent cramping.
+- Built successfully locally.
+- 2026-07-30T06:30:00Z
+- "Check video editor. Check repo. See video if portrait ( 9:16 for example) then when video edited in editor then video is landscape. But same aspect ratio. Check repo. Want portrait in portrait out unless I intentionally rotate. Check repo. Rotate doesn't work properly all the time as in the preview doesn't show proper."
+- app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt
+- Updated `VideoEditorScreen` to handle rotation in the preview by using `Modifier.graphicsLayer` with `rotationZ` and properly scaling (`rotScale`) the container so the video doesn't clip when rotated 90/270 degrees. 
+- Fixed FFmpeg export command generation to swap `targetW` and `targetH` (resolution parameters) dynamically based on whether the input video is natively portrait, factoring in explicit rotation configuration.
+- Built locally successfully.

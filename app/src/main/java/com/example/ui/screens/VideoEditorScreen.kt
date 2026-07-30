@@ -369,16 +369,22 @@ fun VideoEditorScreen(
                         },
                         update = { view ->
                             view.resizeMode = if (ratio != null) 3 else 0
-                            view.rotation = editState.rotateConfig.toFloat()
                         },
                         modifier = previewModifier.graphicsLayer {
                             clip = true
+                            rotationZ = editState.rotateConfig.toFloat()
+                            var rotScale = 1f
+                            if (editState.rotateConfig == 90 || editState.rotateConfig == 270) {
+                                rotScale = minOf(size.width / size.height, size.height / size.width)
+                                scaleX = rotScale
+                                scaleY = rotScale
+                            }
                             if (currentTool != VideoEditorTool.CROP && editState.cropRect == "Custom") {
                                 val cw = editState.cropRight - editState.cropLeft
                                 val ch = editState.cropBottom - editState.cropTop
                                 if (cw > 0 && ch > 0) {
-                                    scaleX = 1f / cw
-                                    scaleY = 1f / ch
+                                    scaleX = (1f / cw) * rotScale
+                                    scaleY = (1f / ch) * rotScale
                                     val cx = (editState.cropLeft + editState.cropRight) / 2f
                                     val cy = (editState.cropTop + editState.cropBottom) / 2f
                                     translationX = (0.5f - cx) * size.width * scaleX
@@ -1188,8 +1194,18 @@ fun VideoEditorScreen(
                         
                         if (res != "Original") {
                             val parts = res.split("x")
-                            val targetW = parts[0].toInt()
-                            val targetH = parts[1].toInt()
+                            var targetW = parts[0].toInt()
+                            var targetH = parts[1].toInt()
+                            
+                            val isOriginalPortrait = (exoPlayer?.videoSize?.height ?: 0) > (exoPlayer?.videoSize?.width ?: 1)
+                            val rotatedPortrait = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) !isOriginalPortrait else isOriginalPortrait
+                            
+                            if (rotatedPortrait) {
+                                val temp = targetW
+                                targetW = targetH
+                                targetH = temp
+                            }
+                            
                             filterList.add("scale=w=$targetW:h=$targetH:force_original_aspect_ratio=decrease:flags=lanczos,pad=$targetW:$targetH:(ow-iw)/2:(oh-ih)/2")
                         }
                         
