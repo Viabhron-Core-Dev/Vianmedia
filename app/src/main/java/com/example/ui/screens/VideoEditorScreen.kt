@@ -85,6 +85,8 @@ fun VideoEditorScreen(
     var editState by remember { mutableStateOf(VideoEditState()) }
     var currentTool by remember { mutableStateOf(VideoEditorTool.NONE) }
     var backupEditState by remember { mutableStateOf<VideoEditState?>(null) }
+    var showTimeInputDialog by remember { mutableStateOf<String?>(null) }
+    var timeInputText by remember { mutableStateOf("") }
     var showExportPanel by remember { mutableStateOf(false) }
     var durationMs by remember { mutableLongStateOf(1L) }
 
@@ -234,8 +236,13 @@ fun VideoEditorScreen(
                 addListener(object : Player.Listener {
                     override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
                         if (videoSize.width > 0 && videoSize.height > 0) {
-                            videoWidth = videoSize.width
-                            videoHeight = videoSize.height
+                            if (videoSize.unappliedRotationDegrees == 90 || videoSize.unappliedRotationDegrees == 270) {
+                                videoWidth = videoSize.height
+                                videoHeight = videoSize.width
+                            } else {
+                                videoWidth = videoSize.width
+                                videoHeight = videoSize.height
+                            }
                         }
                     }
                 })
@@ -249,8 +256,13 @@ fun VideoEditorScreen(
                 addListener(object : Player.Listener {
                     override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
                         if (videoSize.width > 0 && videoSize.height > 0) {
-                            videoWidth = videoSize.width
-                            videoHeight = videoSize.height
+                            if (videoSize.unappliedRotationDegrees == 90 || videoSize.unappliedRotationDegrees == 270) {
+                                videoWidth = videoSize.height
+                                videoHeight = videoSize.width
+                            } else {
+                                videoWidth = videoSize.width
+                                videoHeight = videoSize.height
+                            }
                         }
                     }
                 })
@@ -333,7 +345,7 @@ fun VideoEditorScreen(
                 .fillMaxSize()
         ) {
             // Main UI: Player Preview
-            Box(
+            androidx.compose.foundation.layout.BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
@@ -349,20 +361,40 @@ fun VideoEditorScreen(
                         "1:1" -> 1f
                         "4:3" -> 4f / 3f
                         "21:9" -> 21f / 9f
-                        else -> null
+                        else -> if (videoWidth > 0 && videoHeight > 0) videoWidth.toFloat() / videoHeight.toFloat() else 16f/9f
                     }
                 }
-                val previewModifier = if (ratio != null) {
+                val parentWidth = constraints.maxWidth.toFloat()
+                val parentHeight = constraints.maxHeight.toFloat()
+                
+                val previewModifier = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) {
+                    val rotatedRatio = 1f / ratio
+                    val fitWidth: Float
+                    val fitHeight: Float
+                    if (parentWidth / parentHeight > rotatedRatio) {
+                        fitHeight = parentHeight
+                        fitWidth = fitHeight * rotatedRatio
+                    } else {
+                        fitWidth = parentWidth
+                        fitHeight = fitWidth / rotatedRatio
+                    }
+                    val density = androidx.compose.ui.platform.LocalDensity.current
+                    Modifier
+                        .requiredSize(
+                            width = with(density) { fitHeight.toDp() },
+                            height = with(density) { fitWidth.toDp() }
+                        )
+                        .background(Color.DarkGray)
+                } else {
                     Modifier
                         .aspectRatio(ratio)
                         .background(Color.DarkGray)
-                } else {
-                    Modifier.fillMaxSize()
                 }
                 if (exoPlayer != null) {
                     AndroidView(
                         factory = { ctx ->
-                            PlayerView(ctx).apply {
+                            val view = android.view.LayoutInflater.from(ctx).inflate(com.example.R.layout.player_view_texture, null) as PlayerView
+                            view.apply {
                                 player = exoPlayer
                                 useController = true
                             }
@@ -373,26 +405,18 @@ fun VideoEditorScreen(
                         modifier = previewModifier.graphicsLayer {
                             clip = true
                             rotationZ = editState.rotateConfig.toFloat()
-                            var rotScale = 1f
-                            if (editState.rotateConfig == 90 || editState.rotateConfig == 270) {
-                                rotScale = minOf(size.width / size.height, size.height / size.width)
-                                scaleX = rotScale
-                                scaleY = rotScale
-                            }
+                            
                             if (currentTool != VideoEditorTool.CROP && editState.cropRect == "Custom") {
                                 val cw = editState.cropRight - editState.cropLeft
                                 val ch = editState.cropBottom - editState.cropTop
                                 if (cw > 0 && ch > 0) {
-                                    scaleX = (1f / cw) * rotScale
-                                    scaleY = (1f / ch) * rotScale
+                                    scaleX = (1f / cw)
+                                    scaleY = (1f / ch)
                                     val cx = (editState.cropLeft + editState.cropRight) / 2f
                                     val cy = (editState.cropTop + editState.cropBottom) / 2f
                                     translationX = (0.5f - cx) * size.width * scaleX
                                     translationY = (0.5f - cy) * size.height * scaleY
                                 }
-                            } else if (currentTool != VideoEditorTool.CROP && editState.cropRect == "Center Crop") {
-                                // Center Crop is effectively a 1:1 ratio. If they don't have aspect ratio 1:1 selected, we simulate it
-                                // by scaling the shorter dimension. Actually, ExoPlayer resizeMode handles this if we just let it.
                             }
                         }
                     )
@@ -737,9 +761,9 @@ fun VideoEditorScreen(
                                         // Double Trim UI (Two parts to keep)
                                         // Slider 1
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                            Text(text = formatMs(ds1.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).padding(8.dp))
+                                            Text(text = formatMs(ds1.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).clickable { timeInputText = ds1.toLong().toString(); showTimeInputDialog = "ds1" }.padding(8.dp))
                                             Text(text = "Cut 1: ${formatMs((de1 - ds1).toLong())}", style = MaterialTheme.typography.labelMedium.copy(color = MaterialTheme.colorScheme.primary))
-                                            Text(text = formatMs(de1.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).padding(8.dp))
+                                            Text(text = formatMs(de1.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).clickable { timeInputText = de1.toLong().toString(); showTimeInputDialog = "de1" }.padding(8.dp))
                                         }
                                         RangeSlider(
                                             value = ds1..de1,
@@ -754,9 +778,9 @@ fun VideoEditorScreen(
                                         
                                         // Slider 2
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                            Text(text = formatMs(ds2.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).padding(8.dp))
+                                            Text(text = formatMs(ds2.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).clickable { timeInputText = ds2.toLong().toString(); showTimeInputDialog = "ds2" }.padding(8.dp))
                                             Text(text = "Cut 2: ${formatMs((de2 - ds2).toLong())}", style = MaterialTheme.typography.labelMedium.copy(color = MaterialTheme.colorScheme.primary))
-                                            Text(text = formatMs(de2.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).padding(8.dp))
+                                            Text(text = formatMs(de2.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).clickable { timeInputText = de2.toLong().toString(); showTimeInputDialog = "de2" }.padding(8.dp))
                                         }
                                         RangeSlider(
                                             value = ds2..de2,
@@ -771,9 +795,9 @@ fun VideoEditorScreen(
                                     } else {
                                         // Single Trim/Cut UI
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                            Text(text = formatMs(start.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).padding(8.dp))
+                                            Text(text = formatMs(start.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).clickable { timeInputText = start.toLong().toString(); showTimeInputDialog = "start" }.padding(8.dp))
                                             Text(text = "Cut: ${formatMs((end - start).toLong())}", style = MaterialTheme.typography.labelMedium.copy(color = MaterialTheme.colorScheme.primary))
-                                            Text(text = formatMs(end.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).padding(8.dp))
+                                            Text(text = formatMs(end.toLong()), style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)).clickable { timeInputText = end.toLong().toString(); showTimeInputDialog = "end" }.padding(8.dp))
                                         }
                                                                                 
                                         val activeTrackColor = if (editState.isCutMode) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary
@@ -1036,6 +1060,48 @@ fun VideoEditorScreen(
         val estimatedSizeMb = (estimatedKbps * durationSec) / 8192f
         val estimatedSizeStr = String.format(java.util.Locale.US, "%.1f", estimatedSizeMb)
 
+        if (showTimeInputDialog != null) {
+            AlertDialog(
+                onDismissRequest = { showTimeInputDialog = null },
+                title = { Text("Set Time (ms)") },
+                text = {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = timeInputText,
+                        onValueChange = { 
+                            if (it.isEmpty() || it.all { char -> char.isDigit() }) {
+                                timeInputText = it 
+                            }
+                        },
+                        label = { Text("Milliseconds") }
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val parsed = timeInputText.toLongOrNull()
+                        if (parsed != null) {
+                            val p = parsed.coerceIn(0L, durationMs)
+                            editState = when (showTimeInputDialog) {
+                                "ds1" -> editState.copy(doubleTrimStart1Ms = p, doubleTrimEnd1Ms = editState.doubleTrimEnd1Ms.coerceAtLeast(p))
+                                "de1" -> editState.copy(doubleTrimEnd1Ms = p.coerceAtLeast(editState.doubleTrimStart1Ms))
+                                "ds2" -> editState.copy(doubleTrimStart2Ms = p.coerceAtLeast(editState.doubleTrimEnd1Ms), doubleTrimEnd2Ms = editState.doubleTrimEnd2Ms.coerceAtLeast(p.coerceAtLeast(editState.doubleTrimEnd1Ms)))
+                                "de2" -> editState.copy(doubleTrimEnd2Ms = p.coerceAtLeast(editState.doubleTrimStart2Ms))
+                                "start" -> editState.copy(trimStartMs = p, trimEndMs = editState.trimEndMs.coerceAtLeast(p).takeIf { it > 0 } ?: durationMs)
+                                "end" -> editState.copy(trimEndMs = p.coerceAtLeast(editState.trimStartMs))
+                                else -> editState
+                            }
+                            exoPlayer?.seekTo(p)
+                        }
+                        showTimeInputDialog = null
+                    }) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showTimeInputDialog = null }) { Text("Cancel") }
+                }
+            )
+        }
+        
         if (showExportPanel) {
             AlertDialog(
                 onDismissRequest = { showExportPanel = false },
@@ -1197,17 +1263,37 @@ fun VideoEditorScreen(
                             var targetW = parts[0].toInt()
                             var targetH = parts[1].toInt()
                             
-                            val isOriginalPortrait = (exoPlayer?.videoSize?.height ?: 0) > (exoPlayer?.videoSize?.width ?: 1)
-                            val rotatedPortrait = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) !isOriginalPortrait else isOriginalPortrait
+                            val originalW = videoWidth
+                            val originalH = videoHeight
+                            val rotatedW = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) originalH else originalW
+                            val rotatedH = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) originalW else originalH
                             
-                            if (rotatedPortrait) {
+                            val isPortrait = when {
+                                editState.aspectRatio == "9:16" -> true
+                                editState.aspectRatio == "16:9" -> false
+                                editState.aspectRatio == "4:3" -> false
+                                editState.aspectRatio == "21:9" -> false
+                                editState.aspectRatio == "1:1" -> false
+                                editState.cropRect == "Custom" -> {
+                                    val cw = rotatedW * (editState.cropRight - editState.cropLeft)
+                                    val ch = rotatedH * (editState.cropBottom - editState.cropTop)
+                                    ch > cw
+                                }
+                                editState.cropRect == "Center Crop" -> false
+                                else -> rotatedH > rotatedW
+                            }
+                            
+                            if (isPortrait) {
                                 val temp = targetW
                                 targetW = targetH
                                 targetH = temp
                             }
                             
-                            filterList.add("scale=w=$targetW:h=$targetH:force_original_aspect_ratio=decrease:flags=lanczos,pad=$targetW:$targetH:(ow-iw)/2:(oh-ih)/2")
+                            filterList.add("scale=w=$targetW:h=$targetH:force_original_aspect_ratio=decrease:flags=lanczos")
                         }
+                        
+                        // Always ensure even dimensions for libx264 compatibility
+                        filterList.add("scale=trunc(iw/2)*2:trunc(ih/2)*2")
                         
                         val videoFilterArgs = if (filterList.isNotEmpty()) {
                             "-vf \"${filterList.joinToString(",")}\""

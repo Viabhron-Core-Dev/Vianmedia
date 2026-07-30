@@ -107,7 +107,8 @@ fun AppNavigation(initialUris: List<String> = emptyList(), forceAction: String? 
         }
     }
 
-    NavHost(navController = navController, startDestination = startDest) {
+    val initialRoute = remember { intentDest ?: startDest }
+    NavHost(navController = navController, startDestination = initialRoute) {
         composable("welcome") {
             WelcomeScreen(
                 onPermissionsGranted = {

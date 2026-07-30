@@ -1,7 +1,8 @@
-with open("app/src/main/java/com/example/service/PlaybackService.kt", "r") as f:
+import re
+
+with open("app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt", "r") as f:
     content = f.read()
-if "player.release()" in content:
-    content = content.replace("player.release()", "PlayerManager.release()")
-    with open("app/src/main/java/com/example/service/PlaybackService.kt", "w") as f:
-        f.write(content)
-    print("Replaced")
+
+# Fix the escaped quotes
+content = content.replace('var timeInputText by remember { mutableStateOf(\\"\\") }', 'var timeInputText by remember { mutableStateOf("") }')
+# Wait, let's just restore the file and patch it properly.

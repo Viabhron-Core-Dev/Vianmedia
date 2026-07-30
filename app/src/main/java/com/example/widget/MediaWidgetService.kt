@@ -97,7 +97,7 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         if (mode == "PLAYLIST") return playlist.size
         if (mode == "FOLDERS") {
             if (folderId == null) return folders.size
-            else return folderItems.size + 1 // +1 for "Up" button
+            else return folderItems.size
         }
         return 0
         } catch (e: Exception) {
@@ -122,22 +122,12 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 val fillInIntent = Intent().putExtra("FOLDER_ID", folder.id).putExtra("WIDGET_ACTION", "OPEN_FOLDER")
                 views.setOnClickFillInIntent(R.id.widget_item_root, fillInIntent)
             } else {
-                if (position == 0) {
-                    if (folderId == "search_results") {
-                        views.setTextViewText(R.id.widget_item_title, "[Clear Search]")
-                    } else {
-                        views.setTextViewText(R.id.widget_item_title, "[Back to Folders]")
-                    }
-                    val fillInIntent = Intent().putExtra("WIDGET_ACTION", "BACK_FOLDER")
-                    views.setOnClickFillInIntent(R.id.widget_item_root, fillInIntent)
-                } else {
-                    val file = folderItems[position - 1]
-                    views.setTextViewText(R.id.widget_item_title, "[Media] " + file.name)
-                    val fillInIntent = Intent()
-                        .putExtra("MEDIA_URI", file.uri.toString())
-                        .putExtra("WIDGET_ACTION", "PLAY_FILE")
-                    views.setOnClickFillInIntent(R.id.widget_item_root, fillInIntent)
-                }
+                val file = folderItems[position]
+                views.setTextViewText(R.id.widget_item_title, "[Media] " + file.name)
+                val fillInIntent = Intent()
+                    .putExtra("MEDIA_URI", file.uri.toString())
+                    .putExtra("WIDGET_ACTION", "PLAY_FILE")
+                views.setOnClickFillInIntent(R.id.widget_item_root, fillInIntent)
             }
         }
         return views

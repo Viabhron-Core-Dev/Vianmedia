@@ -1,9 +1,7 @@
-import re
-
 with open("app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt", "r") as f:
     content = f.read()
 
-new_block = """                        modifier = previewModifier.graphicsLayer {
+old_block = """                        modifier = previewModifier.graphicsLayer {
                             clip = true
                             rotationZ = editState.rotateConfig.toFloat()
                             var rotScale = 1f
@@ -24,13 +22,14 @@ new_block = """                        modifier = previewModifier.graphicsLayer 
                                     translationY = (0.5f - cy) * size.height * scaleY
                                 }
                             } else if (currentTool != VideoEditorTool.CROP && editState.cropRect == "Center Crop") {
-                                // Center Crop is effectively a 1:1 ratio. If they don't have aspect ratio 1:1 selected, we simulate it
-                                // by scaling the shorter dimension. Actually, ExoPlayer resizeMode handles this if we just let it.
+                                val s = maxOf(size.width, size.height)
+                                scaleX = (s / size.width) * rotScale
+                                scaleY = (s / size.height) * rotScale
                             }
                         }"""
 
-old_block = """                        modifier = previewModifier
-                            .layout { measurable, constraints ->
+new_block = """                        modifier = previewModifier
+                            .androidx.compose.ui.layout.layout { measurable, constraints ->
                                 if (editState.rotateConfig == 90 || editState.rotateConfig == 270) {
                                     val swappedConstraints = androidx.compose.ui.unit.Constraints(
                                         minWidth = constraints.minHeight,
@@ -67,19 +66,16 @@ old_block = """                        modifier = previewModifier
                                         translationY = (0.5f - cy) * size.height * scaleY
                                     }
                                 } else if (currentTool != VideoEditorTool.CROP && editState.cropRect == "Center Crop") {
-                                    // Center Crop is effectively a 1:1 ratio.
+                                    val s = maxOf(size.width, size.height)
+                                    scaleX = (s / size.width)
+                                    scaleY = (s / size.height)
                                 }
                             }"""
 
 if old_block in content:
     content = content.replace(old_block, new_block)
-    
-    # Also revert imports if needed, but keeping them doesn't hurt. 
-    # Let's remove the imports just to be clean.
-    content = content.replace("import androidx.compose.ui.Modifier\nimport androidx.compose.ui.layout.layout\nimport androidx.compose.ui.unit.Constraints", "import androidx.compose.ui.Modifier")
-    
     with open("app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt", "w") as f:
         f.write(content)
-    print("Reverted")
+    print("Fixed preview logic 2")
 else:
-    print("Could not find block")
+    print("Could not find block 2")

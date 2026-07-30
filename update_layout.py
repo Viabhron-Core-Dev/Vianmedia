@@ -1,78 +1,20 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@drawable/widget_bg"
-    android:padding="0dp">
+import re
 
-    <!-- Top Bar -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/widget_topbar_bg"
-        android:padding="8dp">
+with open("app/src/main/res/layout/widget_media.xml", "r") as f:
+    content = f.read()
 
-        <TextView
-            android:id="@+id/widget_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="No Media"
-            android:textColor="#19202D"
-            android:textSize="14sp"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:textStyle="bold" />
+# Replace Controls Row
+start_tag = "    <!-- Controls Row -->"
+end_tag = "    <!-- Playlist / File Explorer Header -->"
 
-        <ImageView
-            android:id="@+id/widget_btn_refresh"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginStart="8dp"
-            android:src="@android:drawable/ic_popup_sync"
-            android:background="@drawable/widget_btn_bg"
-            android:scaleType="centerInside" />
+if end_tag not in content:
+    end_tag = "    <!-- Playlist / File Explorer -->"
 
-        <ImageView
-            android:id="@+id/widget_btn_pip"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginStart="8dp"
-            android:src="@android:drawable/ic_menu_gallery"
-            android:background="@drawable/widget_btn_bg"
-            android:scaleType="centerInside" />
+start_idx = content.find(start_tag)
+end_idx = content.find(end_tag)
 
-        <ImageView
-            android:id="@+id/widget_btn_expand"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginStart="8dp"
-            android:src="@android:drawable/ic_menu_view"
-            android:background="@drawable/widget_btn_bg"
-            android:scaleType="centerInside" />
-    </LinearLayout>
-    
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@drawable/widget_divider_solid" />
-
-    <!-- Seekbar / ProgressBar -->
-    <ProgressBar
-        android:id="@+id/widget_progress"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="-4dp"
-        android:layout_marginBottom="-4dp"
-        android:progress="0"
-        android:max="100"
-        android:progressTint="#3F51B5" />
-
-    <!-- Controls Row 1 (Playback) -->
+if start_idx != -1 and end_idx != -1:
+    new_controls = """    <!-- Controls Row 1 (Playback) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -199,7 +141,9 @@
         android:layout_height="1dp"
         android:background="@drawable/widget_divider_solid" />
 
-    <!-- Playlist / File Explorer Header -->
+"""
+    
+    explorer_header = """    <!-- Playlist / File Explorer Header -->
     <LinearLayout
         android:id="@+id/widget_explorer_header"
         android:layout_width="match_parent"
@@ -232,45 +176,12 @@
         android:layout_height="1dp"
         android:background="@drawable/widget_divider_solid" />
 
-        <LinearLayout
-        android:id="@+id/widget_explorer_header"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="8dp">
-        <ImageView
-            android:id="@+id/widget_btn_back"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:src="@drawable/ic_widget_back"
-            android:background="@drawable/widget_btn_bg"
-            android:scaleType="centerInside"
-            android:visibility="gone" />
-        <TextView
-            android:id="@+id/widget_explorer_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:text="Library"
-            android:textColor="#19202D"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+    """
 
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@drawable/widget_divider_solid" />
-
-    <!-- Playlist / File Explorer -->
-    <ListView
-        android:id="@+id/widget_list"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:divider="@drawable/widget_divider"
-        android:dividerHeight="1dp" />
-
-</LinearLayout>
+    content = content[:start_idx] + new_controls + explorer_header + content[end_idx + len("    <!-- Playlist / File Explorer Header -->\n") if "Header" in end_tag else end_idx:]
+    
+    with open("app/src/main/res/layout/widget_media.xml", "w") as f:
+        f.write(content)
+    print("Replaced successfully")
+else:
+    print("Tags not found")
