@@ -35,3 +35,5 @@
 - Dynamically swapped the RangeSlider track colors so that in Cut (Remove Middle) mode, the active track visually fills the outside ranges instead of the middle.
 - Implemented a post-export modal dialog in the Video Editor with a portrait preview player.
 - Added an "Edit Finished File" button to the preview modal to recursively open the exported video back into the editor.
+
+- Synchronized Media Widget UI and icon set to perfectly mirror the internal Mini Player overlay structure.

@@ -1,146 +1,13 @@
-package com.example.widget
+import re
 
-import android.app.PendingIntent
-import android.appwidget.AppWidgetManager
-import android.appwidget.AppWidgetProvider
-import android.content.Context
-import android.content.Intent
-import android.widget.RemoteViews
-import com.example.MainActivity
-import com.example.R
+with open("app/src/main/java/com/example/widget/MediaWidgetProvider.kt", "r") as f:
+    content = f.read()
 
-class MediaWidgetProvider : AppWidgetProvider() {
-    private fun updateWidgets(context: Context) {
-        val appWidgetManager = AppWidgetManager.getInstance(context)
-        val componentName = android.content.ComponentName(context, MediaWidgetProvider::class.java)
-        val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
-        for (id in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, id)
-        }
-        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list)
-    }
+# I will replace the entire onReceive method from `override fun onReceive(context: Context, intent: Intent) {` to the end of the class.
 
-
-    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        com.example.LogKeeper.log("onUpdate started for ${appWidgetIds.size} widgets", "MediaWidgetProvider")
-        try {
-            for (appWidgetId in appWidgetIds) {
-                updateAppWidget(context, appWidgetManager, appWidgetId)
-            }
-            com.example.LogKeeper.log("Widget updated successfully for ${appWidgetIds.size} widgets", "MediaWidgetProvider")
-        } catch (e: Exception) {
-            com.example.LogKeeper.logError("MediaWidgetProvider", "Error in onUpdate", e)
-        }
-    }
-
-    private fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
-        com.example.LogKeeper.log("updateAppWidget started for widgetId $appWidgetId", "MediaWidgetProvider")
-        try {
-        val views = RemoteViews(context.packageName, R.layout.widget_media)
-
-        // Pending intent to launch main app
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java).apply {
-                action = "com.example.ACTION_OPEN_PLAYER"
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        views.setOnClickPendingIntent(R.id.widget_title, pendingIntent)
-
-        // Top bar intents
-        views.setOnClickPendingIntent(R.id.widget_btn_pip, getPendingIntent(context, "ACTION_PIP"))
-        views.setOnClickPendingIntent(R.id.widget_btn_expand, getPendingIntent(context, "ACTION_OPEN_APP"))
-        views.setOnClickPendingIntent(R.id.widget_btn_refresh, getPendingIntent(context, "ACTION_REFRESH"))
-        
-        // Intents for playback controls
-        views.setOnClickPendingIntent(R.id.widget_btn_prev, getPendingIntent(context, "ACTION_PREV"))
-        views.setOnClickPendingIntent(R.id.widget_btn_rewind, getPendingIntent(context, "ACTION_REWIND"))
-        views.setOnClickPendingIntent(R.id.widget_btn_play, getPendingIntent(context, "ACTION_PLAY_PAUSE"))
-        views.setOnClickPendingIntent(R.id.widget_btn_ffwd, getPendingIntent(context, "ACTION_FFWD"))
-        views.setOnClickPendingIntent(R.id.widget_btn_next, getPendingIntent(context, "ACTION_NEXT"))
-        views.setOnClickPendingIntent(R.id.widget_btn_stop, getPendingIntent(context, "ACTION_STOP"))
-        views.setOnClickPendingIntent(R.id.widget_btn_loop, getPendingIntent(context, "ACTION_LOOP"))
-        views.setOnClickPendingIntent(R.id.widget_btn_shuffle, getPendingIntent(context, "ACTION_SHUFFLE"))
-        
-        // Bottom right intents
-        views.setOnClickPendingIntent(R.id.widget_btn_close, getPendingIntent(context, "ACTION_CLOSE"))
-        views.setOnClickPendingIntent(R.id.widget_btn_miniplayer, getPendingIntent(context, "ACTION_MINIPLAYER"))
-        
-        views.setOnClickPendingIntent(R.id.widget_btn_back, getPendingIntent(context, "ACTION_BACK_FOLDER"))
-        
-        // Hierarchy UI Update
-        val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
-        val currentMode = prefs.getString("explorer_mode", "current") ?: "current"
-        val folderId = prefs.getString("folder_id", null)
-        val searchQuery = prefs.getString("search_query", "")
-        
-        if (searchQuery?.isNotBlank() == true) {
-            views.setTextViewText(R.id.widget_explorer_title, "Search Results")
-            views.setViewVisibility(R.id.widget_btn_back, android.view.View.VISIBLE)
-        } else {
-            when (currentMode) {
-                "root" -> {
-                    views.setTextViewText(R.id.widget_explorer_title, "Library")
-                    views.setViewVisibility(R.id.widget_btn_back, android.view.View.GONE)
-                }
-                "current" -> {
-                    views.setTextViewText(R.id.widget_explorer_title, "Current")
-                    views.setViewVisibility(R.id.widget_btn_back, android.view.View.VISIBLE)
-                }
-                "folders" -> {
-                    views.setTextViewText(R.id.widget_explorer_title, "Folder List")
-                    views.setViewVisibility(R.id.widget_btn_back, android.view.View.VISIBLE)
-                }
-                "folder_items" -> {
-                    views.setTextViewText(R.id.widget_explorer_title, "Folder")
-                    views.setViewVisibility(R.id.widget_btn_back, android.view.View.VISIBLE)
-                }
-                "playlists" -> {
-                    views.setTextViewText(R.id.widget_explorer_title, "Playlists")
-                    views.setViewVisibility(R.id.widget_btn_back, android.view.View.VISIBLE)
-                }
-            }
-        }
-        
-        val searchIntent = Intent(context, WidgetSearchActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val searchPendingIntent = PendingIntent.getActivity(
-            context,
-            2,
-            searchIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        views.setOnClickPendingIntent(R.id.widget_btn_search, searchPendingIntent)
-
-        // Set up the collection (ListView)
-        val serviceIntent = Intent(context, MediaWidgetService::class.java)
-        views.setRemoteAdapter(R.id.widget_list, serviceIntent)
-        
-        val clickPendingIntent = PendingIntent.getBroadcast(
-            context,
-            1,
-            Intent(context, MediaWidgetProvider::class.java).setAction("ACTION_PLAY_ITEM"),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        )
-        views.setPendingIntentTemplate(R.id.widget_list, clickPendingIntent)
-
-        appWidgetManager.updateAppWidget(appWidgetId, views)
-            com.example.LogKeeper.log("updateAppWidget completed for widgetId $appWidgetId", "MediaWidgetProvider")
-        } catch (e: Exception) {
-            com.example.LogKeeper.logError("MediaWidgetProvider", "Error in updateAppWidget for widgetId $appWidgetId", e)
-        }
-    }
-
-    private fun getPendingIntent(context: Context, action: String): PendingIntent {
-        val intent = Intent(context, MediaWidgetProvider::class.java).setAction(action)
-        return PendingIntent.getBroadcast(context, action.hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-    }
-
-    override fun onReceive(context: Context, intent: Intent) {
+start_idx = content.find("override fun onReceive(context: Context, intent: Intent) {")
+if start_idx != -1:
+    new_content = content[:start_idx] + """override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action
         com.example.LogKeeper.log("onReceive action: $action", "MediaWidgetProvider")
         
@@ -296,3 +163,9 @@ class MediaWidgetProvider : AppWidgetProvider() {
         }
     }
 }
+"""
+    with open("app/src/main/java/com/example/widget/MediaWidgetProvider.kt", "w") as f:
+        f.write(new_content)
+    print("Replaced onReceive")
+else:
+    print("Failed to replace onReceive")

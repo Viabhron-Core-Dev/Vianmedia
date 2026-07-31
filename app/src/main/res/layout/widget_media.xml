@@ -32,7 +32,7 @@
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_marginStart="8dp"
-            android:src="@android:drawable/ic_popup_sync"
+            android:src="@drawable/ic_widget_refresh"
             android:background="@drawable/widget_btn_bg"
             android:scaleType="centerInside" />
 
@@ -41,7 +41,7 @@
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_marginStart="8dp"
-            android:src="@android:drawable/ic_menu_gallery"
+            android:src="@drawable/ic_widget_pip"
             android:background="@drawable/widget_btn_bg"
             android:scaleType="centerInside" />
 
@@ -173,7 +173,7 @@
             android:id="@+id/widget_btn_search"
             android:layout_width="28dp"
             android:layout_height="28dp"
-            android:src="@android:drawable/ic_menu_search"
+            android:src="@drawable/ic_widget_search"
             android:background="@drawable/widget_btn_bg"
             android:scaleType="centerInside" />
         <ImageView
@@ -181,7 +181,7 @@
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_marginStart="8dp"
-            android:src="@android:drawable/ic_menu_crop"
+            android:src="@drawable/ic_widget_miniplayer"
             android:background="@drawable/widget_btn_bg"
             android:scaleType="centerInside" />
         <ImageView
@@ -189,7 +189,7 @@
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_marginStart="8dp"
-            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:src="@drawable/ic_widget_close"
             android:background="@drawable/widget_btn_bg"
             android:scaleType="centerInside" />
     </LinearLayout>

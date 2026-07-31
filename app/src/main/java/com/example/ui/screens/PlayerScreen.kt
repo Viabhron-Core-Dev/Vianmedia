@@ -584,13 +584,10 @@ fun PlayerScreen(
             }
             private fun updateOrientation(videoSize: VideoSize) {
                 if (videoSize.width > 0 && videoSize.height > 0) {
-                    val isRotated = videoSize.unappliedRotationDegrees == 90 || videoSize.unappliedRotationDegrees == 270
-                    val effectiveWidth = if (isRotated) videoSize.height else videoSize.width
-                    val effectiveHeight = if (isRotated) videoSize.width else videoSize.height
-                    context.findActivity()?.requestedOrientation = if (effectiveWidth > effectiveHeight) {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                    } else {
+                    context.findActivity()?.requestedOrientation = if (videoSize.height > videoSize.width) {
                         ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     }
                 }
             }
@@ -633,13 +630,10 @@ fun PlayerScreen(
         val currentUri = controller.currentMediaItem?.localConfiguration?.uri?.toString()
         val decodedUriStr = java.net.URLDecoder.decode(uriString, "UTF-8")
         if (currentUri == decodedUriStr && currentVideoSize.width > 0 && currentVideoSize.height > 0) {
-            val isRotated = controller.videoSize.unappliedRotationDegrees == 90 || controller.videoSize.unappliedRotationDegrees == 270
-            val effectiveWidth = if (isRotated) currentVideoSize.height else currentVideoSize.width
-            val effectiveHeight = if (isRotated) currentVideoSize.width else currentVideoSize.height
-            context.findActivity()?.requestedOrientation = if (effectiveWidth > effectiveHeight) {
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            } else {
+            context.findActivity()?.requestedOrientation = if (currentVideoSize.height > currentVideoSize.width) {
                 ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            } else {
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             }
         }
         
