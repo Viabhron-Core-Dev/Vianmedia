@@ -19,6 +19,7 @@ class MediaWidgetService : RemoteViewsService() {
 
 class MediaWidgetFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
     private var playlist = listOf<MediaItem>()
+    private var currentIndex = -1
     private var folders = listOf<MediaFolder>()
     private var folderItems = listOf<com.example.data.MediaItem>()
     
@@ -40,6 +41,7 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                     val player = PlayerManager.exoPlayer
                     if (player != null && !player.currentTimeline.isEmpty) {
+                        currentIndex = player.currentMediaItemIndex
                         for (i in 0 until player.currentTimeline.windowCount) {
                             val window = androidx.media3.common.Timeline.Window()
                             player.currentTimeline.getWindow(i, window)
@@ -81,9 +83,8 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         return when (currentMode) {
             "root" -> 3
             "current" -> playlist.size
-            "folders" -> folders.size
+            "folders", "playlists" -> 1
             "folder_items", "search_results" -> folderItems.size
-            "playlists" -> 0 // Placeholder
             else -> 0
         }
     }
@@ -119,13 +120,20 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                     views.setViewVisibility(R.id.widget_item_icon, android.view.View.GONE)
                     val item = playlist[position]
                     views.setTextViewText(R.id.widget_item_title, item.mediaMetadata.title?.toString() ?: item.mediaId)
+                    
+                    if (position == currentIndex) {
+                        views.setInt(R.id.widget_item_root, "setBackgroundColor", android.graphics.Color.parseColor("#333F51B5"))
+                    } else {
+                        views.setInt(R.id.widget_item_root, "setBackgroundColor", android.graphics.Color.TRANSPARENT)
+                    }
+                    
                     views.setOnClickFillInIntent(R.id.widget_item_root, Intent().putExtra("EXTRA_INDEX", position).putExtra("WIDGET_ACTION", "PLAYLIST_ITEM"))
                 }
-                "folders" -> {
+                "folders", "playlists" -> {
                     views.setViewVisibility(R.id.widget_item_icon, android.view.View.GONE)
-                    val folder = folders[position]
-                    views.setTextViewText(R.id.widget_item_title, folder.name)
-                    views.setOnClickFillInIntent(R.id.widget_item_root, Intent().putExtra("FOLDER_ID", folder.id).putExtra("WIDGET_ACTION", "OPEN_FOLDER"))
+                    views.setTextViewText(R.id.widget_item_title, "Feature coming soon")
+                    views.setInt(R.id.widget_item_root, "setBackgroundColor", android.graphics.Color.TRANSPARENT)
+                    views.setOnClickFillInIntent(R.id.widget_item_root, Intent())
                 }
                 "folder_items", "search_results" -> {
                     views.setViewVisibility(R.id.widget_item_icon, android.view.View.GONE)

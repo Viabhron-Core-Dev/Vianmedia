@@ -58,3 +58,35 @@
   4. Rewrote `MediaWidgetService.kt` to mirror the `MiniPlayerOverlay` hierarchy. It now has `explorer_mode` ("root", "current", "folders", "folder_items", "playlists") and navigates exactly like the mini player.
   5. Updated `MediaWidgetProvider.kt` to handle the navigation intents (NAVIGATE_CURRENT, NAVIGATE_FOLDERS, NAVIGATE_PLAYLISTS, ACTION_BACK_FOLDER) and update the widget UI state (`widget_explorer_title` and back button visibility).
 - Verification: Local build only.
+2026-07-31T06:44:00Z
+- Requested: Fix crash when clicking widget buttons (ReceiverCallNotAllowedException) and make file explorer / icons precisely match the MiniPlayer (which shows Feature coming soon for folders).
+- Files touched: app/src/main/java/com/example/widget/MediaWidgetProvider.kt, app/src/main/res/layout/widget_media.xml, app/src/main/java/com/example/widget/MediaWidgetService.kt, app/src/main/res/layout/widget_list_item.xml
+- Action:
+  1. Fixed `ReceiverCallNotAllowedException` in `MediaWidgetProvider.kt` by using `context.applicationContext` instead of the broadcast receiver `context` when building the `MediaController`.
+  2. In `MediaWidgetService.kt`, modified `folders` and `playlists` view modes to return a single "Feature coming soon" item with no icons to precisely replicate the MiniPlayer's current lack of implementation.
+  3. Added currently playing item tracking using `currentIndex = player.currentMediaItemIndex` to highlight the "Now Playing" ("current") list item in the widget to match the mini player.
+  4. Removed list dividers (`android:divider="@null"`) from `widget_media.xml` to match the MiniPlayer's un-divided list.
+  5. Updated `widget_list_item.xml` spacing (`paddingStart="16dp"`) to match the `MiniPlayerOverlay` horizontal padding.
+  6. Added `setColorFilter` dynamically for the Shuffle and Loop buttons to `primaryColor` (`#3F51B5`) when they are active to match the tinted icons in the MiniPlayer. Also created `ic_widget_loop_one.xml` for `REPEAT_MODE_ONE`.
+  7. Updated header text ("Now Playing", "Saved Playlists", "Folders") to match `MiniPlayerOverlay` titles exactly.
+- Verification: Compiled via gradle.
+2026-08-01T00:54:00Z
+- Requested: Discuss the bug where video orientation is landscape the first time but portrait on subsequent loads, similar to Next Player's logic. Explicit instruction to "just discuss no coding or building".
+- Files touched: None (read-only analysis)
+- Action: Analyzed PlayerScreen.kt and Next Player's rotation logic. Found that PlayerScreen uses a flawed `URLDecoder.decode` check when verifying the URI for initial orientation setup, while the URI is actually Base64 encoded. This causes the initial setup to fail if the video prepares too quickly (which happens on subsequent loads due to cached codecs).
+- Verification: Not tested.
+2026-08-01T00:54:00Z
+- Requested: Discuss the bug where video orientation is landscape the first time but portrait on subsequent loads, similar to Next Player's logic. Explicit instruction to "just discuss no coding or building".
+- Files touched: None (read-only analysis)
+- Action: Analyzed PlayerScreen.kt and Next Player's rotation logic. Found that PlayerScreen uses a flawed `URLDecoder.decode` check when verifying the URI for initial orientation setup, while the URI is actually Base64 encoded. This causes the initial setup to fail if the video prepares too quickly (which happens on subsequent loads due to cached codecs).
+- Verification: Not tested.
+2026-08-01T01:16:00Z
+- Requested: Implement the orientation fix.
+- Files touched: app/src/main/java/com/example/ui/screens/PlayerScreen.kt
+- Action: Replaced `URLDecoder.decode(uriString, "UTF-8")` with `decodedUriString` in the initial orientation setup block in `PlayerScreen.kt`. The Base64 decoded string now properly matches the current ExoPlayer loaded URI, allowing it to correctly detect orientation on subsequent video loads if the codec immediately readies the video size.
+- Verification: local build only.
+2026-08-01T01:16:00Z
+- Requested: Implement the orientation fix.
+- Files touched: app/src/main/java/com/example/ui/screens/PlayerScreen.kt
+- Action: Replaced `URLDecoder.decode(uriString, "UTF-8")` with `decodedUriString` in the initial orientation setup block in `PlayerScreen.kt`. The Base64 decoded string now properly matches the current ExoPlayer loaded URI, allowing it to correctly detect orientation on subsequent video loads if the codec immediately readies the video size.
+- Verification: local build only.

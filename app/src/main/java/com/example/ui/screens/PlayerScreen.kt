@@ -628,8 +628,7 @@ fun PlayerScreen(
         
         val currentVideoSize = controller.videoSize
         val currentUri = controller.currentMediaItem?.localConfiguration?.uri?.toString()
-        val decodedUriStr = java.net.URLDecoder.decode(uriString, "UTF-8")
-        if (currentUri == decodedUriStr && currentVideoSize.width > 0 && currentVideoSize.height > 0) {
+        if (currentUri == decodedUriString && currentVideoSize.width > 0 && currentVideoSize.height > 0) {
             context.findActivity()?.requestedOrientation = if (currentVideoSize.height > currentVideoSize.width) {
                 ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
             } else {

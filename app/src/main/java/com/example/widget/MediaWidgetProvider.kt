@@ -12,7 +12,7 @@ import com.example.R
 class MediaWidgetProvider : AppWidgetProvider() {
     private fun updateWidgets(context: Context) {
         val appWidgetManager = AppWidgetManager.getInstance(context)
-        val componentName = android.content.ComponentName(context, MediaWidgetProvider::class.java)
+        val componentName = android.content.ComponentName(context.applicationContext, MediaWidgetProvider::class.java)
         val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
         for (id in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, id)
@@ -71,6 +71,44 @@ class MediaWidgetProvider : AppWidgetProvider() {
         
         views.setOnClickPendingIntent(R.id.widget_btn_back, getPendingIntent(context, "ACTION_BACK_FOLDER"))
         
+        // Play icon update
+        val player = com.example.service.PlayerManager.exoPlayer
+        if (player != null) {
+            if (player.isPlaying) {
+                views.setImageViewResource(R.id.widget_btn_play, R.drawable.ic_widget_pause)
+            } else {
+                views.setImageViewResource(R.id.widget_btn_play, R.drawable.ic_widget_play)
+            }
+            
+            // Loop icon
+            val loopMode = player.repeatMode
+            val primaryColor = android.graphics.Color.parseColor("#3F51B5")
+            val defaultColor = android.graphics.Color.parseColor("#19202D")
+            
+            if (loopMode == androidx.media3.common.Player.REPEAT_MODE_ONE) {
+                views.setImageViewResource(R.id.widget_btn_loop, R.drawable.ic_widget_loop_one)
+                views.setInt(R.id.widget_btn_loop, "setColorFilter", primaryColor)
+            } else if (loopMode == androidx.media3.common.Player.REPEAT_MODE_ALL) {
+                views.setImageViewResource(R.id.widget_btn_loop, R.drawable.ic_widget_loop)
+                views.setInt(R.id.widget_btn_loop, "setColorFilter", primaryColor)
+            } else {
+                views.setImageViewResource(R.id.widget_btn_loop, R.drawable.ic_widget_loop)
+                views.setInt(R.id.widget_btn_loop, "setColorFilter", defaultColor)
+            }
+            
+            // Shuffle icon
+            if (player.shuffleModeEnabled) {
+                views.setInt(R.id.widget_btn_shuffle, "setColorFilter", primaryColor)
+            } else {
+                views.setInt(R.id.widget_btn_shuffle, "setColorFilter", defaultColor)
+            }
+            
+        } else {
+            views.setImageViewResource(R.id.widget_btn_play, R.drawable.ic_widget_play)
+            views.setInt(R.id.widget_btn_loop, "setColorFilter", android.graphics.Color.parseColor("#19202D"))
+            views.setInt(R.id.widget_btn_shuffle, "setColorFilter", android.graphics.Color.parseColor("#19202D"))
+        }
+
         // Hierarchy UI Update
         val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
         val currentMode = prefs.getString("explorer_mode", "current") ?: "current"
@@ -227,8 +265,8 @@ class MediaWidgetProvider : AppWidgetProvider() {
 
         if (isMediaCommand) {
             val pendingResult = goAsync()
-            val sessionToken = androidx.media3.session.SessionToken(context, android.content.ComponentName(context, com.example.service.PlaybackService::class.java))
-            val controllerFuture = androidx.media3.session.MediaController.Builder(context, sessionToken).buildAsync()
+            val sessionToken = androidx.media3.session.SessionToken(context.applicationContext, android.content.ComponentName(context.applicationContext, com.example.service.PlaybackService::class.java))
+            val controllerFuture = androidx.media3.session.MediaController.Builder(context.applicationContext, sessionToken).buildAsync()
             
             controllerFuture.addListener({
                 try {
