@@ -90,3 +90,13 @@
 - Files touched: app/src/main/java/com/example/ui/screens/PlayerScreen.kt
 - Action: Replaced `URLDecoder.decode(uriString, "UTF-8")` with `decodedUriString` in the initial orientation setup block in `PlayerScreen.kt`. The Base64 decoded string now properly matches the current ExoPlayer loaded URI, allowing it to correctly detect orientation on subsequent video loads if the codec immediately readies the video size.
 - Verification: local build only.
+2026-08-01T05:36:00Z
+Fixed video orientation bug where landscape videos play in portrait, and the screen gets stuck in the previous video's orientation.
+Touched: app/src/main/java/com/example/ui/screens/PlayerScreen.kt
+Implemented correct orientation detection by factoring in `videoSize.unappliedRotationDegrees` to determine the true effective orientation of the video (fixing the core bug where videos rotated via metadata were forced into the wrong orientation). Also removed the faulty initial block and `EVENT_MEDIA_ITEM_TRANSITION` triggers that were forcing the orientation to change using a stale `videoSize` from the previously played media item.
+Verified by local build.
+2026-08-01T08:08:00Z
+Implemented NextPlayer-style Network Stream playback from the topbar menu.
+Touched: app/src/main/java/com/example/ui/screens/MainScreen.kt
+Added "Network Stream" option to the library overflow menu that opens an `AlertDialog` for entering a stream URL. The entered URL is passed to `onNavigateToPlayer` which securely passes the Base64 encoded string to `PlayerScreen` where ExoPlayer's `DefaultDataSource` manages playback.
+Verified by local build.

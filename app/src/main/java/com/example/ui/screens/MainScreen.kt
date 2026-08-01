@@ -85,6 +85,7 @@ fun MainScreen(
     val isLoading by viewModel.isLoading.collectAsState()
 
     var showSettingsDialog by rememberSaveable { mutableStateOf(false) }
+    var showNetworkStreamDialog by rememberSaveable { mutableStateOf(false) }
 
     var selectedFolderId by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedFolder = mediaFolders.find { it.id == selectedFolderId }
@@ -252,6 +253,7 @@ fun MainScreen(
                             DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
                                 DropdownMenuItem(text = { Text("Sort by Name") }, onClick = { sortOrder = SortOrder.NAME; showOverflowMenu = false })
                                 DropdownMenuItem(text = { Text("Sort by Date") }, onClick = { sortOrder = SortOrder.DATE; showOverflowMenu = false })
+                                DropdownMenuItem(text = { Text("Network Stream") }, onClick = { showNetworkStreamDialog = true; showOverflowMenu = false })
                                 DropdownMenuItem(text = { Text("Settings") }, onClick = { showSettingsDialog = true; showOverflowMenu = false })
                             }
                         }
@@ -916,6 +918,41 @@ fun MainScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showRenameDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showNetworkStreamDialog) {
+        var streamUrl by rememberSaveable { mutableStateOf("") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showNetworkStreamDialog = false },
+            title = { Text("Network Stream") },
+            text = {
+                OutlinedTextField(
+                    value = streamUrl,
+                    onValueChange = { streamUrl = it },
+                    label = { Text("Stream URL") },
+                    placeholder = { Text("http://..., rtsp://...") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (streamUrl.isNotBlank()) {
+                            onNavigateToPlayer(streamUrl)
+                            showNetworkStreamDialog = false
+                        }
+                    }
+                ) {
+                    Text("Play")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNetworkStreamDialog = false }) {
                     Text("Cancel")
                 }
             }
