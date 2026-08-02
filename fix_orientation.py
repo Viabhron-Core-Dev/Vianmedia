@@ -1,61 +1,40 @@
 import re
+
 with open("app/src/main/java/com/example/ui/screens/PlayerScreen.kt", "r") as f:
     content = f.read()
 
-old_func = """            private fun updateOrientation(videoSize: VideoSize) {
-                if (videoSize.width > 0 && videoSize.height > 0) {
-                    context.findActivity()?.requestedOrientation = if (videoSize.height > videoSize.width) {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                    }
+# Replace updateOrientation usage in listener
+old_listener = """            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == androidx.media3.common.Player.STATE_READY) {
+                    updateOrientation(controller.videoSize)
+                }"""
+new_listener = """            override fun onPlaybackStateChanged(playbackState: Int) {"""
+content = content.replace(old_listener, new_listener)
+
+old_video_size = """            override fun onVideoSizeChanged(videoSize: VideoSize) {
+                updateOrientation(videoSize)
+            }"""
+new_video_size = """            override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
+                if (events.contains(androidx.media3.common.Player.EVENT_VIDEO_SIZE_CHANGED)) {
+                    updateOrientation(player.videoSize)
                 }
             }"""
+content = content.replace(old_video_size, new_video_size)
 
-new_func = """            private fun updateOrientation(videoSize: VideoSize) {
-                if (videoSize.width > 0 && videoSize.height > 0) {
-                    val isPortrait = if (videoSize.unappliedRotationDegrees % 180 == 0) {
-                        videoSize.height > videoSize.width
-                    } else {
-                        videoSize.width > videoSize.height
-                    }
-                    context.findActivity()?.requestedOrientation = if (isPortrait) {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                    }
-                }
-            }"""
+# Add initial updateOrientation call
+old_hoisted = """        hoistedMainListener = mainListener
+        controller.addListener(mainListener)"""
+new_hoisted = """        hoistedMainListener = mainListener
+        controller.addListener(mainListener)
+        updateOrientation(controller.videoSize)"""
+content = content.replace(old_hoisted, new_hoisted)
 
-content = content.replace(old_func, new_func)
-
-old_initial = """        val currentVideoSize = controller.videoSize
-        val currentUri = controller.currentMediaItem?.localConfiguration?.uri?.toString()
-        if (currentUri == decodedUriString && currentVideoSize.width > 0 && currentVideoSize.height > 0) {
-            context.findActivity()?.requestedOrientation = if (currentVideoSize.height > currentVideoSize.width) {
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-            } else {
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            }
-        }"""
-
-new_initial = """        val currentVideoSize = controller.videoSize
-        val currentUri = controller.currentMediaItem?.localConfiguration?.uri?.toString()
-        if (currentUri == decodedUriString && currentVideoSize.width > 0 && currentVideoSize.height > 0) {
-            val isPortrait = if (currentVideoSize.unappliedRotationDegrees % 180 == 0) {
-                currentVideoSize.height > currentVideoSize.width
-            } else {
-                currentVideoSize.width > currentVideoSize.height
-            }
-            context.findActivity()?.requestedOrientation = if (isPortrait) {
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-            } else {
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            }
-        }"""
-
-content = content.replace(old_initial, new_initial)
+# Make sure onDispose uses UNSPECIFIED
+old_dispose_user = "context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER"
+new_dispose_unspec = "context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED"
+content = content.replace(old_dispose_user, new_dispose_unspec)
 
 with open("app/src/main/java/com/example/ui/screens/PlayerScreen.kt", "w") as f:
     f.write(content)
-print("Applied orientation logic fix.")
+
+print("Fixed orientation logic")

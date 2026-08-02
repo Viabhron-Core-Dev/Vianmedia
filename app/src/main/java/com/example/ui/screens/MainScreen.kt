@@ -122,6 +122,14 @@ fun MainScreen(
         contract = androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val imageLoader = context.imageLoader
+            val settings = com.example.data.SettingsManager.getInstance(context)
+            selectedMediaItems.forEach { media ->
+                val uriStr = media.uri.toString()
+                imageLoader.diskCache?.remove(uriStr)
+                imageLoader.memoryCache?.remove(coil.memory.MemoryCache.Key(uriStr))
+                settings.removePlaybackState(uriStr)
+            }
             selectedFolderId?.let { viewModel.scanFolder(it) } ?: viewModel.loadMedia()
             selectedMediaItems.clear()
             showDeleteConfirmDialog = false
@@ -796,6 +804,7 @@ fun MainScreen(
                                         val imageLoader = context.imageLoader
                                         imageLoader.diskCache?.remove(uri.toString())
                                         imageLoader.memoryCache?.remove(coil.memory.MemoryCache.Key(uri.toString()))
+                                        com.example.data.SettingsManager.getInstance(context).removePlaybackState(uri.toString())
                                     } catch (e: Exception) {
                                         com.example.LogKeeper.logError("MainScreen", "Error deleting file ${media.name}", e)
                                     }
@@ -818,6 +827,7 @@ fun MainScreen(
                                         val imageLoader = context.imageLoader
                                         imageLoader.diskCache?.remove(media.uri.toString())
                                         imageLoader.memoryCache?.remove(coil.memory.MemoryCache.Key(media.uri.toString()))
+                                        com.example.data.SettingsManager.getInstance(context).removePlaybackState(media.uri.toString())
                                     } catch (se: SecurityException) {
                                         if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.Q) {
                                             val recoverable = se as? android.app.RecoverableSecurityException

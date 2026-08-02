@@ -100,3 +100,22 @@ Implemented NextPlayer-style Network Stream playback from the topbar menu.
 Touched: app/src/main/java/com/example/ui/screens/MainScreen.kt
 Added "Network Stream" option to the library overflow menu that opens an `AlertDialog` for entering a stream URL. The entered URL is passed to `onNavigateToPlayer` which securely passes the Base64 encoded string to `PlayerScreen` where ExoPlayer's `DefaultDataSource` manages playback.
 Verified by local build.
+2026-08-02T04:10:00Z
+Investigated and fixed video orientation bug on second play and Editor's "Edit Finished File" button.
+Touched: app/src/main/java/com/example/ui/screens/PlayerScreen.kt, app/src/main/java/com/example/MainActivity.kt
+Changed orientation detection to trigger on EVENT_VIDEO_SIZE_CHANGED and immediately on initialization like NextPlayer, while preserving ExoPlayer's unappliedRotationDegrees logic. Also ensured requestedOrientation resets to UNSPECIFIED onDispose. Added 'action == "edit"' parsing in MainActivity to correctly load exported video URIs into the Editor.
+Verified by local build.
+2026-08-02T05:15:37Z
+Implemented persistent video orientation saving per-URI and added cleanup on deletion.
+Touched: app/src/main/java/com/example/data/SettingsManager.kt, app/src/main/java/com/example/ui/screens/MainScreen.kt, app/src/main/java/com/example/ui/screens/PlayerScreen.kt
+Added saveVideoOrientation, getVideoOrientation, and removePlaybackState to SettingsManager. Updated PlayerScreen to read and apply saved orientation immediately, eliminating the brief landscape/portrait flash and wrong-orientation-on-startup issues. Modified MainScreen to call removePlaybackState for both File System and MediaStore deletions to prevent stale orientation metadata buildup in SharedPreferences.
+Verified by local build.
+2026-08-02T05:15:37Z
+Implemented persistent video orientation saving per-URI and added cleanup on deletion.
+Touched: app/src/main/java/com/example/data/SettingsManager.kt, app/src/main/java/com/example/ui/screens/MainScreen.kt, app/src/main/java/com/example/ui/screens/PlayerScreen.kt
+Added saveVideoOrientation, getVideoOrientation, and removePlaybackState to SettingsManager. Updated PlayerScreen to read and apply saved orientation immediately, eliminating the brief landscape/portrait flash and wrong-orientation-on-startup issues. Modified MainScreen to call removePlaybackState for both File System and MediaStore deletions to prevent stale orientation metadata buildup in SharedPreferences.
+Verified by local build.
+2026-08-02T05:22:00Z
+Fixed deleteLauncher callback in MainScreen.kt to ensure removePlaybackState runs for items deleted via MediaStore OS dialog.
+Touched: app/src/main/java/com/example/ui/screens/MainScreen.kt
+Verified by local build.

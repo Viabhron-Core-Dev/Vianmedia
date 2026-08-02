@@ -118,7 +118,7 @@ class MainActivity : ComponentActivity() {
                   if (currentMediaId != null) {
                       initialUris = listOf(currentMediaId)
                   }
-              } else if (currentIntent?.action == android.content.Intent.ACTION_VIEW) {
+              } else if (currentIntent?.action == android.content.Intent.ACTION_VIEW || currentIntent?.action == "edit") {
                 currentIntent?.data?.let { uri ->
                   initialUris = listOf(uri.toString())
                 }

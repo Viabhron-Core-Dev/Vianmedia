@@ -115,6 +115,27 @@ class SettingsManager private constructor(context: Context) {
         return prefs.getLong("dur_$uri", -1L)
     }
 
+    fun saveVideoOrientation(uri: String, isPortrait: Boolean) {
+        prefs.edit().putBoolean("orient_$uri", isPortrait).apply()
+    }
+
+    fun getVideoOrientation(uri: String): Boolean? {
+        return if (prefs.contains("orient_$uri")) {
+            prefs.getBoolean("orient_$uri", false)
+        } else {
+            null
+        }
+    }
+
+    fun removePlaybackState(uri: String) {
+        prefs.edit()
+            .remove("time_$uri")
+            .remove("pos_$uri")
+            .remove("dur_$uri")
+            .remove("orient_$uri")
+            .apply()
+    }
+
     // A video is finished if we watched past 99%
     fun isFinished(uri: String): Boolean {
         val pos = getPlaybackPosition(uri)

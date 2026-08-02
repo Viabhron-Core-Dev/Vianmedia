@@ -342,7 +342,7 @@ fun PlayerScreen(
 
     DisposableEffect(Unit) {
         onDispose {
-            context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
+            context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             val window = context.findActivity()?.window
             if (window != null) {
                 window.statusBarColor = android.graphics.Color.TRANSPARENT
@@ -532,6 +532,31 @@ fun PlayerScreen(
         }
         controller.setPlaybackSpeed(playbackSpeed)
         
+
+        val savedOrientation = settingsManager.getVideoOrientation(decodedUriString)
+        if (savedOrientation != null) {
+            context.findActivity()?.requestedOrientation = if (savedOrientation) {
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            } else {
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            }
+        }
+
+        fun updateOrientation(videoSize: androidx.media3.common.VideoSize) {
+            if (videoSize.width > 0 && videoSize.height > 0) {
+                val isPortrait = if (videoSize.unappliedRotationDegrees % 180 == 0) {
+                    videoSize.height > videoSize.width
+                } else {
+                    videoSize.width > videoSize.height
+                }
+                settingsManager.saveVideoOrientation(decodedUriString, isPortrait)
+                context.findActivity()?.requestedOrientation = if (isPortrait) {
+                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                } else {
+                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                }
+            }
+        }
         val mainListener = object : androidx.media3.common.Player.Listener {
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                 // Restore track selection
@@ -582,24 +607,8 @@ fun PlayerScreen(
                     controller.trackSelectionParameters = builder.build()
                 }
             }
-            private fun updateOrientation(videoSize: VideoSize) {
-                if (videoSize.width > 0 && videoSize.height > 0) {
-                    val isPortrait = if (videoSize.unappliedRotationDegrees % 180 == 0) {
-                        videoSize.height > videoSize.width
-                    } else {
-                        videoSize.width > videoSize.height
-                    }
-                    context.findActivity()?.requestedOrientation = if (isPortrait) {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                    }
-                }
-            }
+
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == androidx.media3.common.Player.STATE_READY) {
-                    updateOrientation(controller.videoSize)
-                }
                 if (playbackState == androidx.media3.common.Player.STATE_ENDED) {
                     val currentMode = controller.repeatMode
                     val hasNext = controller.hasNextMediaItem()
@@ -620,8 +629,10 @@ fun PlayerScreen(
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 com.example.LogKeeper.logError("PlayerScreen", "ExoPlayer Error: ${error.message}", error)
             }
-            override fun onVideoSizeChanged(videoSize: VideoSize) {
-                updateOrientation(videoSize)
+            override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
+                if (events.contains(androidx.media3.common.Player.EVENT_VIDEO_SIZE_CHANGED)) {
+                    updateOrientation(player.videoSize)
+                }
             }
         }
         hoistedMainListener = mainListener
