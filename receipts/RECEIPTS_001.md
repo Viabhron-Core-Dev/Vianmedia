@@ -119,3 +119,27 @@ Verified by local build.
 Fixed deleteLauncher callback in MainScreen.kt to ensure removePlaybackState runs for items deleted via MediaStore OS dialog.
 Touched: app/src/main/java/com/example/ui/screens/MainScreen.kt
 Verified by local build.
+2026-08-02T13:32:00Z
+Replaced custom video orientation logic with NextPlayer's exact implementation.
+Touched: app/src/main/java/com/example/ui/screens/PlayerScreen.kt
+Removed the unappliedRotationDegrees % 180 modulo checks for calculating isPortrait, and replaced it strictly with NextPlayer's `videoSize.height > videoSize.width` logic. Added an `else` branch to set orientation to `UNSPECIFIED` when no saved orientation exists to prevent the second video from inheriting the first video's orientation lock.
+Verified by local build.
+2026-08-02T13:58:00Z
+Discussed Media3 VideoEffects route for Video Editor preview. No code changes made per user instruction.
+Touched: None
+Verified by: N/A
+2026-08-02T14:07:00Z
+Implemented Media3 VideoEffects pipeline for VideoEditor live preview.
+Touched: app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt
+Replaced UI-level `graphicsLayer` hacks (rotationZ, scaleX, scaleY, translationX, translationY) with native `exoPlayer.setVideoEffects`. Rotation, Crop, and AspectRatio presentation effects are now piped directly into ExoPlayer so the live preview matches the final ffmpeg output perfectly. Disabled Crop and AspectRatio effects when `currentTool == VideoEditorTool.CROP` so the Canvas crop UI correctly aligns with the raw (but rotated) video frame. Simplified UI Box sizing by directly relying on ExoPlayer's processed `videoSize` output.
+Verified by local build.
+2026-08-02T14:16:00Z
+Added manual Export Orientation toggle.
+Touched: app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt
+Implemented user request to set the orientation of exported videos manually (Auto, Portrait, Landscape). Added a UI filter chip row in the "Export & Quality Control" dialog and hooked it into the FFmpeg command generation logic.
+Verified by local build.
+2026-08-03T07:48:57Z
+Fixed crop overlay block display for center crop and presets.
+Touched: app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt
+Modified the Canvas drawing logic for the crop tool to display darkened crop blocks even when using presets (Center Crop and Aspect Ratio), while only showing the draggable green corner handles when the "Custom" crop preset is selected. Also updated the aspect ratio calculations to properly account for the user's rotation setting.
+Verified by local build.

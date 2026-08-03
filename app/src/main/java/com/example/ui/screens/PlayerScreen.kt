@@ -540,20 +540,18 @@ fun PlayerScreen(
             } else {
                 ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             }
+        } else {
+            context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
 
         fun updateOrientation(videoSize: androidx.media3.common.VideoSize) {
             if (videoSize.width > 0 && videoSize.height > 0) {
-                val isPortrait = if (videoSize.unappliedRotationDegrees % 180 == 0) {
-                    videoSize.height > videoSize.width
-                } else {
-                    videoSize.width > videoSize.height
-                }
+                val isPortrait = videoSize.height > videoSize.width
                 settingsManager.saveVideoOrientation(decodedUriString, isPortrait)
                 context.findActivity()?.requestedOrientation = if (isPortrait) {
-                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                 } else {
-                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                 }
             }
         }

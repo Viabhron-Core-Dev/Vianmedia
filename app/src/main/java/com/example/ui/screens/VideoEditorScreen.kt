@@ -296,6 +296,49 @@ fun VideoEditorScreen(
         }
     }
 
+    val cropLeftKey = if (currentTool == VideoEditorTool.CROP) 0f else editState.cropLeft
+    val cropRightKey = if (currentTool == VideoEditorTool.CROP) 0f else editState.cropRight
+    val cropTopKey = if (currentTool == VideoEditorTool.CROP) 0f else editState.cropTop
+    val cropBottomKey = if (currentTool == VideoEditorTool.CROP) 0f else editState.cropBottom
+
+    LaunchedEffect(editState.rotateConfig, editState.cropRect, cropLeftKey, cropRightKey, cropTopKey, cropBottomKey, editState.aspectRatio, currentTool) {
+        val effects = mutableListOf<androidx.media3.common.Effect>()
+        
+        if (editState.rotateConfig != 0) {
+            effects.add(androidx.media3.effect.ScaleAndRotateTransformation.Builder().setRotationDegrees(editState.rotateConfig.toFloat()).build())
+        }
+        
+        if (editState.cropRect == "Center Crop") {
+            effects.add(androidx.media3.effect.Presentation.createForAspectRatio(1f, androidx.media3.effect.Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP))
+        } else if (editState.cropRect == "Custom" && currentTool != VideoEditorTool.CROP) {
+            val cw = editState.cropRight - editState.cropLeft
+            val ch = editState.cropBottom - editState.cropTop
+            if (cw > 0 && ch > 0) {
+                val left = editState.cropLeft * 2f - 1f
+                val right = editState.cropRight * 2f - 1f
+                val top = 1f - editState.cropTop * 2f
+                val bottom = 1f - editState.cropBottom * 2f
+                effects.add(androidx.media3.effect.Crop(left, right, bottom, top))
+            }
+        }
+        
+        if (currentTool != VideoEditorTool.CROP) {
+            if (editState.aspectRatio != "Original" && editState.cropRect != "Center Crop") {
+                val ratioFloat = when (editState.aspectRatio) {
+                    "16:9" -> 16f / 9f
+                    "9:16" -> 9f / 16f
+                    "1:1" -> 1f
+                    "4:3" -> 4f / 3f
+                    "21:9" -> 21f / 9f
+                    else -> 1f
+                }
+                effects.add(androidx.media3.effect.Presentation.createForAspectRatio(ratioFloat, androidx.media3.effect.Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP))
+            }
+        }
+        
+        exoPlayer?.setVideoEffects(effects)
+    }
+
     // Live preview updates based on edit state
     LaunchedEffect(editState.speed) {
         LogKeeper.log("Video playback speed adjusted to: ${editState.speed}x", "VideoEditor")
@@ -352,53 +395,12 @@ fun VideoEditorScreen(
                     .background(MaterialTheme.colorScheme.background),
                 contentAlignment = Alignment.Center
             ) {
-                val ratio = if (editState.cropRect == "Center Crop" && currentTool != VideoEditorTool.CROP) {
-                    1f
-                } else {
-                    when (editState.aspectRatio) {
-                        "16:9" -> 16f / 9f
-                        "9:16" -> 9f / 16f
-                        "1:1" -> 1f
-                        "4:3" -> 4f / 3f
-                        "21:9" -> 21f / 9f
-                        else -> if (videoWidth > 0 && videoHeight > 0) videoWidth.toFloat() / videoHeight.toFloat() else 16f/9f
-                    }
-                }
-                val parentWidth = constraints.maxWidth.toFloat()
-                val parentHeight = constraints.maxHeight.toFloat()
-                
-                val density = androidx.compose.ui.platform.LocalDensity.current
-                val isRotated = editState.rotateConfig == 90 || editState.rotateConfig == 270
-                val (visualWidth, visualHeight) = if (isRotated) {
-                    val rotatedRatio = 1f / ratio
-                    if (parentWidth / parentHeight > rotatedRatio) {
-                        Pair(parentHeight * rotatedRatio, parentHeight)
-                    } else {
-                        Pair(parentWidth, parentWidth / rotatedRatio)
-                    }
-                } else {
-                    if (parentWidth / parentHeight > ratio) {
-                        Pair(parentHeight * ratio, parentHeight)
-                    } else {
-                        Pair(parentWidth, parentWidth / ratio)
-                    }
-                }
+                val ratio = if (videoWidth > 0 && videoHeight > 0) videoWidth.toFloat() / videoHeight.toFloat() else 16f/9f
                 
                 val visualModifier = Modifier
-                    .requiredSize(
-                        width = with(density) { visualWidth.toDp() },
-                        height = with(density) { visualHeight.toDp() }
-                    )
+                    .fillMaxWidth()
+                    .aspectRatio(ratio)
                     .background(Color.DarkGray)
-
-                val internalModifier = if (isRotated) {
-                    Modifier.requiredSize(
-                        width = with(density) { visualHeight.toDp() },
-                        height = with(density) { visualWidth.toDp() }
-                    )
-                } else {
-                    Modifier.fillMaxSize()
-                }
 
                 Box(modifier = visualModifier, contentAlignment = Alignment.Center) {
                     if (exoPlayer != null) {
@@ -408,121 +410,149 @@ fun VideoEditorScreen(
                                 view.apply {
                                     player = exoPlayer
                                     useController = true
+                                    resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                                 }
                             },
-                            update = { view ->
-                                view.resizeMode = if (ratio != null) 3 else 0
-                            },
-                            modifier = internalModifier.graphicsLayer {
-                                clip = true
-                                rotationZ = editState.rotateConfig.toFloat()
-                                
-                                if (currentTool != VideoEditorTool.CROP && editState.cropRect == "Custom") {
-                                    val cw = editState.cropRight - editState.cropLeft
-                                    val ch = editState.cropBottom - editState.cropTop
-                                    if (cw > 0 && ch > 0) {
-                                        scaleX = (1f / cw)
-                                        scaleY = (1f / ch)
-                                        val cx = (editState.cropLeft + editState.cropRight) / 2f
-                                        val cy = (editState.cropTop + editState.cropBottom) / 2f
-                                        translationX = (0.5f - cx) * size.width * scaleX
-                                        translationY = (0.5f - cy) * size.height * scaleY
-                                    }
-                                }
-                            }
+                            modifier = Modifier.fillMaxSize()
                         )
                     } else {
                         Box(modifier = Modifier.fillMaxSize().background(Color.Black))
                     }
                 }
                 
-                if (currentTool == VideoEditorTool.CROP && editState.cropRect == "Custom") {
+                val showCropOverlay = (currentTool == VideoEditorTool.CROP && editState.cropRect != "None") || 
+                                      (currentTool == VideoEditorTool.ASPECT_RATIO && editState.aspectRatio != "Original")
+                
+                if (showCropOverlay) {
                     var resizeCorner by remember { mutableIntStateOf(0) }
-                    Canvas(modifier = Modifier.fillMaxSize().pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                if (videoWidth == 0 || videoHeight == 0) return@detectDragGestures
-                                val canvasAspect = size.width.toFloat() / size.height.toFloat()
-                                val effectiveVideoWidth = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) videoHeight else videoWidth
-                                val effectiveVideoHeight = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) videoWidth else videoHeight
-                                val videoAspect = effectiveVideoWidth.toFloat() / effectiveVideoHeight.toFloat()
-                                var drawWidth = size.width.toFloat()
-                                var drawHeight = size.height.toFloat()
-                                if (videoAspect > canvasAspect) {
-                                    drawHeight = size.width / videoAspect
-                                } else {
-                                    drawWidth = size.height * videoAspect
-                                }
-                                val left = (size.width - drawWidth) / 2f
-                                val top = (size.height - drawHeight) / 2f
-                                
-                                val cL = left + editState.cropLeft * drawWidth
-                                val cT = top + editState.cropTop * drawHeight
-                                val cR = left + editState.cropRight * drawWidth
-                                val cB = top + editState.cropBottom * drawHeight
-                                
-                                val touchRadius = 60f
-                                if (abs(offset.x - cL) < touchRadius && abs(offset.y - cT) < touchRadius) resizeCorner = 1
-                                else if (abs(offset.x - cR) < touchRadius && abs(offset.y - cT) < touchRadius) resizeCorner = 2
-                                else if (abs(offset.x - cL) < touchRadius && abs(offset.y - cB) < touchRadius) resizeCorner = 3
-                                else if (abs(offset.x - cR) < touchRadius && abs(offset.y - cB) < touchRadius) resizeCorner = 4
-                                else if (offset.x > cL && offset.x < cR && offset.y > cT && offset.y < cB) resizeCorner = 5
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                if (videoWidth == 0 || videoHeight == 0) return@detectDragGestures
-                                val canvasAspect = size.width.toFloat() / size.height.toFloat()
-                                val effectiveVideoWidth = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) videoHeight else videoWidth
-                                val effectiveVideoHeight = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) videoWidth else videoHeight
-                                val videoAspect = effectiveVideoWidth.toFloat() / effectiveVideoHeight.toFloat()
-                                var drawWidth = size.width.toFloat()
-                                var drawHeight = size.height.toFloat()
-                                if (videoAspect > canvasAspect) {
-                                    drawHeight = size.width / videoAspect
-                                } else {
-                                    drawWidth = size.height * videoAspect
-                                }
-                                val dx = dragAmount.x / drawWidth
-                                val dy = dragAmount.y / drawHeight
-                                
-                                var nL = editState.cropLeft
-                                var nT = editState.cropTop
-                                var nR = editState.cropRight
-                                var nB = editState.cropBottom
-                                
-                                when (resizeCorner) {
-                                    5 -> {
-                                        nL = (nL + dx).coerceIn(0f, 1f - (nR - editState.cropLeft))
-                                        nR = nL + (editState.cropRight - editState.cropLeft)
-                                        nT = (nT + dy).coerceIn(0f, 1f - (nB - editState.cropTop))
-                                        nB = nT + (editState.cropBottom - editState.cropTop)
+                    
+                    val isCustom = currentTool == VideoEditorTool.CROP && editState.cropRect == "Custom"
+                    
+                    val effectiveVideoWidth = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) videoHeight else videoWidth
+                    val effectiveVideoHeight = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) videoWidth else videoHeight
+                    
+                    var displayCropLeft = editState.cropLeft
+                    var displayCropTop = editState.cropTop
+                    var displayCropRight = editState.cropRight
+                    var displayCropBottom = editState.cropBottom
+                    
+                    if (!isCustom && effectiveVideoHeight > 0) {
+                        val videoAspect = effectiveVideoWidth.toFloat() / effectiveVideoHeight.toFloat()
+                        val targetRatio = if (currentTool == VideoEditorTool.CROP && editState.cropRect == "Center Crop") {
+                            1f
+                        } else {
+                            when (editState.aspectRatio) {
+                                "16:9" -> 16f / 9f
+                                "9:16" -> 9f / 16f
+                                "1:1" -> 1f
+                                "4:3" -> 4f / 3f
+                                "21:9" -> 21f / 9f
+                                else -> videoAspect
+                            }
+                        }
+                        
+                        if (videoAspect > targetRatio) {
+                            val cropWidth = targetRatio / videoAspect
+                            displayCropLeft = (1f - cropWidth) / 2f
+                            displayCropRight = 1f - displayCropLeft
+                            displayCropTop = 0f
+                            displayCropBottom = 1f
+                        } else {
+                            val cropHeight = videoAspect / targetRatio
+                            displayCropTop = (1f - cropHeight) / 2f
+                            displayCropBottom = 1f - displayCropTop
+                            displayCropLeft = 0f
+                            displayCropRight = 1f
+                        }
+                    }
+
+                    val pointerInputModifier = if (isCustom) {
+                        Modifier.pointerInput(Unit) {
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    if (effectiveVideoWidth == 0 || effectiveVideoHeight == 0) return@detectDragGestures
+                                    val canvasAspect = size.width.toFloat() / size.height.toFloat()
+                                    val videoAspect = effectiveVideoWidth.toFloat() / effectiveVideoHeight.toFloat()
+                                    var drawWidth = size.width.toFloat()
+                                    var drawHeight = size.height.toFloat()
+                                    if (videoAspect > canvasAspect) {
+                                        drawHeight = size.width / videoAspect
+                                    } else {
+                                        drawWidth = size.height * videoAspect
                                     }
-                                    1 -> {
-                                        nL = (nL + dx).coerceIn(0f, nR - 0.05f)
-                                        nT = (nT + dy).coerceIn(0f, nB - 0.05f)
+                                    val left = (size.width - drawWidth) / 2f
+                                    val top = (size.height - drawHeight) / 2f
+                                    
+                                    val cL = left + editState.cropLeft * drawWidth
+                                    val cT = top + editState.cropTop * drawHeight
+                                    val cR = left + editState.cropRight * drawWidth
+                                    val cB = top + editState.cropBottom * drawHeight
+                                    
+                                    val touchRadius = 60f
+                                    if (abs(offset.x - cL) < touchRadius && abs(offset.y - cT) < touchRadius) resizeCorner = 1
+                                    else if (abs(offset.x - cR) < touchRadius && abs(offset.y - cT) < touchRadius) resizeCorner = 2
+                                    else if (abs(offset.x - cL) < touchRadius && abs(offset.y - cB) < touchRadius) resizeCorner = 3
+                                    else if (abs(offset.x - cR) < touchRadius && abs(offset.y - cB) < touchRadius) resizeCorner = 4
+                                    else if (offset.x > cL && offset.x < cR && offset.y > cT && offset.y < cB) resizeCorner = 5
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    if (effectiveVideoWidth == 0 || effectiveVideoHeight == 0) return@detectDragGestures
+                                    val canvasAspect = size.width.toFloat() / size.height.toFloat()
+                                    val videoAspect = effectiveVideoWidth.toFloat() / effectiveVideoHeight.toFloat()
+                                    var drawWidth = size.width.toFloat()
+                                    var drawHeight = size.height.toFloat()
+                                    if (videoAspect > canvasAspect) {
+                                        drawHeight = size.width / videoAspect
+                                    } else {
+                                        drawWidth = size.height * videoAspect
                                     }
-                                    2 -> {
-                                        nR = (nR + dx).coerceIn(nL + 0.05f, 1f)
-                                        nT = (nT + dy).coerceIn(0f, nB - 0.05f)
+                                    val dx = dragAmount.x / drawWidth
+                                    val dy = dragAmount.y / drawHeight
+                                    
+                                    var nL = editState.cropLeft
+                                    var nT = editState.cropTop
+                                    var nR = editState.cropRight
+                                    var nB = editState.cropBottom
+                                    
+                                    when (resizeCorner) {
+                                        5 -> {
+                                            nL = (nL + dx).coerceIn(0f, 1f - (nR - editState.cropLeft))
+                                            nR = nL + (editState.cropRight - editState.cropLeft)
+                                            nT = (nT + dy).coerceIn(0f, 1f - (nB - editState.cropTop))
+                                            nB = nT + (editState.cropBottom - editState.cropTop)
+                                        }
+                                        1 -> {
+                                            nL = (nL + dx).coerceIn(0f, nR - 0.05f)
+                                            nT = (nT + dy).coerceIn(0f, nB - 0.05f)
+                                        }
+                                        2 -> {
+                                            nR = (nR + dx).coerceIn(nL + 0.05f, 1f)
+                                            nT = (nT + dy).coerceIn(0f, nB - 0.05f)
+                                        }
+                                        3 -> {
+                                            nL = (nL + dx).coerceIn(0f, nR - 0.05f)
+                                            nB = (nB + dy).coerceIn(nT + 0.05f, 1f)
+                                        }
+                                        4 -> {
+                                            nR = (nR + dx).coerceIn(nL + 0.05f, 1f)
+                                            nB = (nB + dy).coerceIn(nT + 0.05f, 1f)
+                                        }
                                     }
-                                    3 -> {
-                                        nL = (nL + dx).coerceIn(0f, nR - 0.05f)
-                                        nB = (nB + dy).coerceIn(nT + 0.05f, 1f)
-                                    }
-                                    4 -> {
-                                        nR = (nR + dx).coerceIn(nL + 0.05f, 1f)
-                                        nB = (nB + dy).coerceIn(nT + 0.05f, 1f)
-                                    }
-                                }
-                                editState = editState.copy(cropLeft = nL, cropTop = nT, cropRight = nR, cropBottom = nB)
-                            },
-                            onDragEnd = { resizeCorner = 0 },
-                            onDragCancel = { resizeCorner = 0 }
-                        )
-                    }) {
-                        if (videoWidth == 0 || videoHeight == 0) return@Canvas
+                                    editState = editState.copy(cropLeft = nL, cropTop = nT, cropRight = nR, cropBottom = nB)
+                                },
+                                onDragEnd = { resizeCorner = 0 },
+                                onDragCancel = { resizeCorner = 0 }
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+
+                    Canvas(modifier = Modifier.fillMaxSize().then(pointerInputModifier)) {
+                        if (effectiveVideoWidth == 0 || effectiveVideoHeight == 0) return@Canvas
                         val canvasAspect = size.width / size.height
-                        val videoAspect = videoWidth.toFloat() / videoHeight.toFloat()
+                        val videoAspect = effectiveVideoWidth.toFloat() / effectiveVideoHeight.toFloat()
                         var drawWidth = size.width
                         var drawHeight = size.height
                         if (videoAspect > canvasAspect) {
@@ -533,10 +563,10 @@ fun VideoEditorScreen(
                         val left = (size.width - drawWidth) / 2f
                         val top = (size.height - drawHeight) / 2f
                         
-                        val cL = left + editState.cropLeft * drawWidth
-                        val cT = top + editState.cropTop * drawHeight
-                        val cR = left + editState.cropRight * drawWidth
-                        val cB = top + editState.cropBottom * drawHeight
+                        val cL = left + displayCropLeft * drawWidth
+                        val cT = top + displayCropTop * drawHeight
+                        val cR = left + displayCropRight * drawWidth
+                        val cB = top + displayCropBottom * drawHeight
                         
                         drawRect(color = Color.Black.copy(alpha = 0.5f), topLeft = Offset(left, top), size = Size(drawWidth, cT - top))
                         drawRect(color = Color.Black.copy(alpha = 0.5f), topLeft = Offset(left, cB), size = Size(drawWidth, top + drawHeight - cB))
@@ -545,18 +575,20 @@ fun VideoEditorScreen(
                         
                         drawRect(color = Color.White, topLeft = Offset(cL, cT), size = Size(cR - cL, cB - cT), style = Stroke(width = 5f))
                         
-                        val cornerLen = 40f
-                        drawLine(Color.Green, Offset(cL, cT), Offset(cL + cornerLen, cT), 12f)
-                        drawLine(Color.Green, Offset(cL, cT), Offset(cL, cT + cornerLen), 12f)
-                        
-                        drawLine(Color.Green, Offset(cR, cT), Offset(cR - cornerLen, cT), 12f)
-                        drawLine(Color.Green, Offset(cR, cT), Offset(cR, cT + cornerLen), 12f)
-                        
-                        drawLine(Color.Green, Offset(cL, cB), Offset(cL + cornerLen, cB), 12f)
-                        drawLine(Color.Green, Offset(cL, cB), Offset(cL, cB - cornerLen), 12f)
-                        
-                        drawLine(Color.Green, Offset(cR, cB), Offset(cR - cornerLen, cB), 12f)
-                        drawLine(Color.Green, Offset(cR, cB), Offset(cR, cB - cornerLen), 12f)
+                        if (isCustom) {
+                            val cornerLen = 40f
+                            drawLine(Color.Green, Offset(cL, cT), Offset(cL + cornerLen, cT), 12f)
+                            drawLine(Color.Green, Offset(cL, cT), Offset(cL, cT + cornerLen), 12f)
+                            
+                            drawLine(Color.Green, Offset(cR, cT), Offset(cR - cornerLen, cT), 12f)
+                            drawLine(Color.Green, Offset(cR, cT), Offset(cR, cT + cornerLen), 12f)
+                            
+                            drawLine(Color.Green, Offset(cL, cB), Offset(cL + cornerLen, cB), 12f)
+                            drawLine(Color.Green, Offset(cL, cB), Offset(cL, cB - cornerLen), 12f)
+                            
+                            drawLine(Color.Green, Offset(cR, cB), Offset(cR - cornerLen, cB), 12f)
+                            drawLine(Color.Green, Offset(cR, cB), Offset(cR, cB - cornerLen), 12f)
+                        }
                     }
                 }
             }
@@ -570,15 +602,16 @@ fun VideoEditorScreen(
                 var currentPositionMs by remember { mutableLongStateOf(0L) }
                 var isDragging by remember { mutableStateOf(false) }
 
-                LaunchedEffect(exoPlayer, editState) {
+                val currentEditState by rememberUpdatedState(editState)
+                LaunchedEffect(exoPlayer) {
                     while (true) {
                         if (!isDragging) {
                             currentPositionMs = exoPlayer?.currentPosition ?: 0L
-                            if (editState.isDoubleTrim) {
-                                val ds1 = editState.doubleTrimStart1Ms.coerceIn(0L, durationMs)
-                                val de1 = editState.doubleTrimEnd1Ms.coerceIn(ds1, durationMs).takeIf { it > 0 } ?: (durationMs / 2)
-                                val ds2 = editState.doubleTrimStart2Ms.coerceIn(de1, durationMs)
-                                val de2 = editState.doubleTrimEnd2Ms.coerceIn(ds2, durationMs).takeIf { it > 0 } ?: durationMs
+                            if (currentEditState.isDoubleTrim) {
+                                val ds1 = currentEditState.doubleTrimStart1Ms.coerceIn(0L, durationMs)
+                                val de1 = currentEditState.doubleTrimEnd1Ms.coerceIn(ds1, durationMs).takeIf { it > 0 } ?: (durationMs / 2)
+                                val ds2 = currentEditState.doubleTrimStart2Ms.coerceIn(de1, durationMs)
+                                val de2 = currentEditState.doubleTrimEnd2Ms.coerceIn(ds2, durationMs).takeIf { it > 0 } ?: durationMs
                                 
                                 if (currentPositionMs >= de1 && currentPositionMs < ds2) {
                                     exoPlayer?.seekTo(ds2)
@@ -590,9 +623,9 @@ fun VideoEditorScreen(
                                     exoPlayer?.seekTo(ds1)
                                     currentPositionMs = ds1
                                 }
-                            } else if (!editState.isCutMode) {
-                                val start = editState.trimStartMs.coerceIn(0L, durationMs)
-                                val end = editState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
+                            } else if (!currentEditState.isCutMode) {
+                                val start = currentEditState.trimStartMs.coerceIn(0L, durationMs)
+                                val end = currentEditState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
                                 if (end > 0 && currentPositionMs >= end) {
                                     exoPlayer?.seekTo(start)
                                     currentPositionMs = start
@@ -602,8 +635,8 @@ fun VideoEditorScreen(
                                 }
                             } else {
                                 // In cut mode, we skip the middle
-                                val start = editState.trimStartMs.coerceIn(0L, durationMs)
-                                val end = editState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
+                                val start = currentEditState.trimStartMs.coerceIn(0L, durationMs)
+                                val end = currentEditState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
                                 if (currentPositionMs >= start && currentPositionMs < end) {
                                     exoPlayer?.seekTo(end)
                                     currentPositionMs = end
@@ -1042,6 +1075,7 @@ fun VideoEditorScreen(
 
         // Export Panel Overlay
         var format by remember { mutableStateOf("mp4") }
+        var exportOrientation by remember { mutableStateOf("Auto") }
         var resolutionIndex by remember { mutableIntStateOf(0) } // 0 -> Original, 1 -> 144p, 2 -> 240p, 3 -> 360p, 4 -> 480p, 5 -> 720p, 6 -> 1080p
         var fpsIndex by remember { mutableIntStateOf(1) } // 0 -> 24fps, 1 -> 30fps, 2 -> 60fps
         var quality by remember { mutableFloatStateOf(0.7f) }
@@ -1164,6 +1198,13 @@ fun VideoEditorScreen(
                             Text("Fast Export (ultrafast preset)")
                         }
                         Spacer(modifier = Modifier.height(16.dp))
+                        Text("Export Orientation")
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            FilterChip(selected = exportOrientation == "Auto", onClick = { exportOrientation = "Auto" }, label= { Text("Auto")})
+                            FilterChip(selected = exportOrientation == "Portrait", onClick = { exportOrientation = "Portrait" }, label= { Text("Portrait")})
+                            FilterChip(selected = exportOrientation == "Landscape", onClick = { exportOrientation = "Landscape" }, label= { Text("Landscape")})
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text("Converter Format")
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             FilterChip(selected = format == "mp4", onClick = { format = "mp4" }, label= { Text("mp4")})
@@ -1284,19 +1325,23 @@ fun VideoEditorScreen(
                             val rotatedW = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) originalH else originalW
                             val rotatedH = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) originalW else originalH
                             
-                            val isPortrait = when {
-                                editState.aspectRatio == "9:16" -> true
-                                editState.aspectRatio == "16:9" -> false
-                                editState.aspectRatio == "4:3" -> false
-                                editState.aspectRatio == "21:9" -> false
-                                editState.aspectRatio == "1:1" -> false
-                                editState.cropRect == "Custom" -> {
-                                    val cw = rotatedW * (editState.cropRight - editState.cropLeft)
-                                    val ch = rotatedH * (editState.cropBottom - editState.cropTop)
-                                    ch > cw
+                            val isPortrait = when (exportOrientation) {
+                                "Portrait" -> true
+                                "Landscape" -> false
+                                else -> when {
+                                    editState.aspectRatio == "9:16" -> true
+                                    editState.aspectRatio == "16:9" -> false
+                                    editState.aspectRatio == "4:3" -> false
+                                    editState.aspectRatio == "21:9" -> false
+                                    editState.aspectRatio == "1:1" -> false
+                                    editState.cropRect == "Custom" -> {
+                                        val cw = rotatedW * (editState.cropRight - editState.cropLeft)
+                                        val ch = rotatedH * (editState.cropBottom - editState.cropTop)
+                                        ch > cw
+                                    }
+                                    editState.cropRect == "Center Crop" -> false
+                                    else -> rotatedH > rotatedW
                                 }
-                                editState.cropRect == "Center Crop" -> false
-                                else -> rotatedH > rotatedW
                             }
                             
                             if (isPortrait) {

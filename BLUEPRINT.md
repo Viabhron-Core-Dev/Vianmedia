@@ -39,3 +39,4 @@
 - Synchronized Media Widget UI and icon set to perfectly mirror the internal Mini Player overlay structure.
 - Fixed ReceiverCallNotAllowedException in widget by using applicationContext for MediaController.
 - Synced widget File Explorer visual and logical states with MiniPlayer, including active item highlights and 'Feature coming soon' placeholders.- Fixed an orientation bug where subsequent video loads incorrectly fell back to landscape instead of auto-detecting orientation by using the properly decoded URI for comparison.
+- Updated the Crop tool UI logic so that Center Crop and Aspect Ratio presets display the darkened overlay blocks (to show what's being cut out) without draggable handles, which are reserved for the Custom preset.
