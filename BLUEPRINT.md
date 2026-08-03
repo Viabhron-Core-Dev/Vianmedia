@@ -40,3 +40,7 @@
 - Fixed ReceiverCallNotAllowedException in widget by using applicationContext for MediaController.
 - Synced widget File Explorer visual and logical states with MiniPlayer, including active item highlights and 'Feature coming soon' placeholders.- Fixed an orientation bug where subsequent video loads incorrectly fell back to landscape instead of auto-detecting orientation by using the properly decoded URI for comparison.
 - Updated the Crop tool UI logic so that Center Crop and Aspect Ratio presets display the darkened overlay blocks (to show what's being cut out) without draggable handles, which are reserved for the Custom preset.
+- Implemented **Audio & Sound Effects** features:
+  - **Vocal Frequency EQ**: 5-band equalizer with presets for flat and vocal boost.
+  - **Dynamic Range Compression (Night Mode)**: Uses `DynamicsProcessing` to level audio (quiet sounds boosted, loud sounds reduced).
+  - **Center Channel Extraction**: Custom `AudioProcessor` that isolates the mid-channel, acting like a reverse karaoke effect to enhance dialogue.

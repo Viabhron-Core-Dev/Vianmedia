@@ -40,6 +40,7 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
     val settingsManager = remember { SettingsManager.getInstance(context) }
     val coroutineScope = rememberCoroutineScope()
     var showPlayerSettingsDialog by remember { mutableStateOf(false) }
+    var showAudioSettingsDialog by remember { mutableStateOf(false) }
     var showPermissionsDialog by remember { mutableStateOf(false) }
     
     val viewModel: MediaViewModel = viewModel()
@@ -252,8 +253,13 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
             
             Text("Player Settings", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
-            Button(onClick = { showPlayerSettingsDialog = true }) {
-                Text("Open Player Settings")
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Button(onClick = { showPlayerSettingsDialog = true }, modifier = Modifier.weight(1f)) {
+                    Text("Player Settings")
+                }
+                FilledTonalButton(onClick = { showAudioSettingsDialog = true }, modifier = Modifier.weight(1f)) {
+                    Text("Audio & EQ")
+                }
             }
             
             Spacer(modifier = Modifier.height(8.dp))
@@ -330,6 +336,15 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                     properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
                 ) {
                     PlayerSettingsScreen(onNavigateBack = { showPlayerSettingsDialog = false })
+                }
+            }
+            
+            if (showAudioSettingsDialog) {
+                androidx.compose.ui.window.Dialog(
+                    onDismissRequest = { showAudioSettingsDialog = false },
+                    properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+                ) {
+                    AudioSettingsScreen(onNavigateBack = { showAudioSettingsDialog = false })
                 }
             }
             

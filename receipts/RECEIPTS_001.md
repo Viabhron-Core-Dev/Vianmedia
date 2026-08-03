@@ -143,3 +143,8 @@ Fixed crop overlay block display for center crop and presets.
 Touched: app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt
 Modified the Canvas drawing logic for the crop tool to display darkened crop blocks even when using presets (Center Crop and Aspect Ratio), while only showing the draggable green corner handles when the "Custom" crop preset is selected. Also updated the aspect ratio calculations to properly account for the user's rotation setting.
 Verified by local build.
+2026-08-03T07:59:15Z
+Implemented Audio Settings with Center Channel Extraction, Night Mode, and Equalizer.
+Touched: app/src/main/java/com/example/ui/screens/AudioSettingsScreen.kt, app/src/main/java/com/example/ui/screens/SettingsScreen.kt, app/src/main/java/com/example/data/SettingsManager.kt, app/src/main/java/com/example/service/PlayerManager.kt, app/src/main/java/com/example/service/CenterChannelAudioProcessor.kt
+Added "Audio & EQ" panel in settings. Implemented a custom AudioProcessor for Mid/Side center extraction (vocal enhancement), Equalizer UI for vocal frequency control, and DynamicsProcessing (Night Mode) for dynamic range compression.
+Verified by local build.

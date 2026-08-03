@@ -9,10 +9,16 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import android.media.audiofx.LoudnessEnhancer
+import android.media.audiofx.Equalizer
+import android.media.audiofx.DynamicsProcessing
+import android.os.Build
 
 object PlayerManager {
     var exoPlayer: ExoPlayer? = null
     var loudnessEnhancer: LoudnessEnhancer? = null
+    var equalizer: Equalizer? = null
+    var dynamicsProcessing: DynamicsProcessing? = null
+    val centerChannelProcessor = CenterChannelAudioProcessor()
 
     fun initialize(context: Context, skipSilence: Boolean = false) {
         if (exoPlayer != null) return
@@ -34,8 +40,19 @@ object PlayerManager {
             .build()
 
         val settings = com.example.data.SettingsManager.getInstance(context.applicationContext)
-        val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(context.applicationContext)
-            .setEnableDecoderFallback(true)
+        val renderersFactory = object : androidx.media3.exoplayer.DefaultRenderersFactory(context.applicationContext) {
+            override fun buildAudioSink(
+                context: android.content.Context,
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean
+            ): androidx.media3.exoplayer.audio.AudioSink? {
+                return androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context)
+                    .setAudioProcessors(arrayOf(centerChannelProcessor))
+                    .setEnableFloatOutput(enableFloatOutput)
+                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                    .build()
+            }
+        }.setEnableDecoderFallback(true)
             .setExtensionRendererMode(
                 when (settings.decoderPriority) {
                     0 -> androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
@@ -104,15 +121,35 @@ object PlayerManager {
                     try {
                         loudnessEnhancer?.release()
                         loudnessEnhancer = LoudnessEnhancer(audioSessionId)
+                        
+                        equalizer?.release()
+                        try { equalizer = Equalizer(0, audioSessionId) } catch (e: Exception) {}
+                        
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            dynamicsProcessing?.release()
+                            try {
+                                val config = DynamicsProcessing.Config.Builder(
+                                    DynamicsProcessing.VARIANT_FAVOR_FREQUENCY_RESOLUTION,
+                                    2, true, 0, true, 0, true, 0, true
+                                )
+                                .build()
+                                dynamicsProcessing = DynamicsProcessing(0, audioSessionId, config)
+                            } catch (e: Exception) {}
+                        }
+                        
                         val settings = com.example.data.SettingsManager.getInstance(context.applicationContext)
+                        
                         if (settings.audioBoosterEnabled && settings.boostGainMb > 0) {
                             loudnessEnhancer?.setTargetGain(settings.boostGainMb)
                             loudnessEnhancer?.enabled = true
                         } else {
                             loudnessEnhancer?.enabled = false
                         }
+                        
+                        applyAudioEffects(settings)
+                        
                     } catch (e: Exception) {
-                        com.example.LogKeeper.logError("PlayerManager", "Failed to create LoudnessEnhancer on session change", e)
+                        com.example.LogKeeper.logError("PlayerManager", "Failed to create AudioEffects on session change", e)
                     }
                 }
             }
@@ -127,6 +164,40 @@ object PlayerManager {
                     com.example.LogKeeper.logError("PlayerManager", "Failed to create LoudnessEnhancer", e)
                 }
             }
+        }
+    }
+
+    
+    fun applyAudioEffects(settings: com.example.data.SettingsManager) {
+        centerChannelProcessor.enabled = settings.centerChannelEnabled
+        
+        try {
+            equalizer?.let { eq ->
+                eq.enabled = settings.eqEnabled
+                if (settings.eqEnabled) {
+                    val levels = settings.getEqLevels()
+                    if (levels.isNotEmpty() && levels.size == eq.numberOfBands.toInt()) {
+                        for (i in 0 until eq.numberOfBands) {
+                            eq.setBandLevel(i.toShort(), levels[i].toShort())
+                        }
+                    }
+                }
+            }
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                dynamicsProcessing?.let { dp ->
+                    dp.enabled = settings.nightModeEnabled
+                    if (settings.nightModeEnabled) {
+                        // Very aggressive compression for night mode / loudness leveling
+                        val mbc = DynamicsProcessing.Mbc(true, true, 1)
+                        val mbcBand = DynamicsProcessing.MbcBand(true, 1000f, 50f, 200f, 4f, -40f, 10f, -90f, 1f, 0f, 5f)
+                        mbc.setBand(0, mbcBand)
+                        dp.setMbcAllChannelsTo(mbc)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            com.example.LogKeeper.logError("PlayerManager", "Error applying audio effects", e)
         }
     }
 
@@ -183,5 +254,11 @@ object PlayerManager {
         exoPlayer = null
         loudnessEnhancer?.release()
         loudnessEnhancer = null
+        equalizer?.release()
+        equalizer = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            dynamicsProcessing?.release()
+        }
+        dynamicsProcessing = null
     }
 }

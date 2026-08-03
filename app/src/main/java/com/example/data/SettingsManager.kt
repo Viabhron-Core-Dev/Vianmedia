@@ -163,6 +163,43 @@ class SettingsManager private constructor(context: Context) {
         get() = prefs.getInt("decoder_priority", 1) // 0: Device Only, 1: Prefer Device, 2: Prefer App
         set(value) = prefs.edit().putInt("decoder_priority", value).apply()
 
+    
+    var centerChannelEnabled: Boolean
+        get() = prefs.getBoolean("center_channel_enabled", false)
+        set(value) {
+            prefs.edit().putBoolean("center_channel_enabled", value).apply()
+            com.example.service.PlayerManager.applyAudioEffects(this)
+        }
+
+    var eqEnabled: Boolean
+        get() = prefs.getBoolean("eq_enabled", false)
+        set(value) {
+            prefs.edit().putBoolean("eq_enabled", value).apply()
+            com.example.service.PlayerManager.applyAudioEffects(this)
+        }
+
+    var nightModeEnabled: Boolean
+        get() = prefs.getBoolean("night_mode_enabled", false)
+        set(value) {
+            prefs.edit().putBoolean("night_mode_enabled", value).apply()
+            com.example.service.PlayerManager.applyAudioEffects(this)
+        }
+        
+    fun getEqLevels(): List<Int> {
+        val str = prefs.getString("eq_levels", "") ?: ""
+        if (str.isEmpty()) return emptyList()
+        return try {
+            str.split(",").map { it.toInt() }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    
+    fun setEqLevels(levels: List<Int>) {
+        prefs.edit().putString("eq_levels", levels.joinToString(",")).apply()
+        com.example.service.PlayerManager.applyAudioEffects(this)
+    }
+
     fun getNotificationPriority(): List<String> {
         val defaultPriority = "Loop,Playlist,PiP,Close"
         val saved = prefs.getString("notification_priority", defaultPriority) ?: defaultPriority
