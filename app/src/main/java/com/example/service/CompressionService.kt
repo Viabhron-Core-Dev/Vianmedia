@@ -55,6 +55,8 @@ class CompressionService : Service() {
         isCancelled = false
         val maxWidth = intent.getIntExtra("maxWidth", -1)
         val maxHeight = intent.getIntExtra("maxHeight", -1)
+        val quality = intent.getIntExtra("quality", 80)
+        val formatStr = intent.getStringExtra("format") ?: "JPEG"
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Compressing Images")
@@ -70,7 +72,7 @@ class CompressionService : Service() {
 
         serviceScope.launch {
             LogKeeper.log("Starting batch compression for ${uris.size} images...", "Compressor")
-            processImages(uris, maxWidth, maxHeight)
+            processImages(uris, maxWidth, maxHeight, quality, formatStr)
             LogKeeper.log("Completed batch compression for ${uris.size} images.", "Compressor")
             CompressionStatus.isRunning = false
             stopForeground(true)
@@ -102,7 +104,7 @@ class CompressionService : Service() {
         return result?.substringBeforeLast(".") ?: "compressed_${System.currentTimeMillis()}"
     }
 
-    private suspend fun processImages(uris: List<String>, maxWidth: Int, maxHeight: Int) {
+    private suspend fun processImages(uris: List<String>, maxWidth: Int, maxHeight: Int, quality: Int, formatStr: String) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val settingsManager = SettingsManager.getInstance(applicationContext)
         val outputUriStr = settingsManager.outputFolderUri.value
@@ -119,18 +121,33 @@ class CompressionService : Service() {
                 if (bitmap != null) {
                     var outBitmap = bitmap
                     if (maxWidth > 0 && maxHeight > 0) {
-                        val ratio = kotlin.math.min(maxWidth.toFloat() / bitmap.width, maxHeight.toFloat() / bitmap.height)
+                        val maxDim = maxOf(maxWidth, maxHeight).toFloat()
+                        val minDim = minOf(maxWidth, maxHeight).toFloat()
+                        
+                        val targetW = if (bitmap.width > bitmap.height) maxDim else minDim
+                        val targetH = if (bitmap.width > bitmap.height) minDim else maxDim
+                        
+                        val ratio = minOf(targetW / bitmap.width, targetH / bitmap.height)
+                        
                         if (ratio < 1f) {
                             val newW = (bitmap.width * ratio).toInt()
                             val newH = (bitmap.height * ratio).toInt()
                             outBitmap = Bitmap.createScaledBitmap(bitmap, newW, newH, true)
                         }
                     }
+                    
+                    val compressFormat = when (formatStr) {
+                        "PNG" -> Bitmap.CompressFormat.PNG
+                        "WEBP" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.WEBP
+                        else -> Bitmap.CompressFormat.JPEG
+                    }
+                    val ext = formatStr.lowercase()
+                    
                     val origName = getOriginalFileName(uri)
-                    val fileName = "${origName}_compressed.jpg"
-                    val outStream: OutputStream? = getOutputStream(outputUriStr, fileName)
+                    val fileName = "${origName}_compressed.${ext}"
+                    val outStream: OutputStream? = getOutputStream(outputUriStr, fileName, ext)
                     if (outStream != null) {
-                        outBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outStream)
+                        outBitmap.compress(compressFormat, quality, outStream)
                         outStream.close()
                     }
                     if (outBitmap != bitmap) {
@@ -156,7 +173,7 @@ class CompressionService : Service() {
         }
     }
 
-    private fun getOutputStream(outputUriStr: String?, fileName: String): OutputStream? {
+    private fun getOutputStream(outputUriStr: String?, fileName: String, ext: String): OutputStream? {
         if (outputUriStr != null) {
             try {
                 val treeUri = Uri.parse(outputUriStr)
@@ -165,7 +182,7 @@ class CompressionService : Service() {
                 val newUri = android.provider.DocumentsContract.createDocument(
                     contentResolver,
                     docUri,
-                    "image/jpeg",
+                    "image/${ext}",
                     fileName
                 )
                 if (newUri != null) {
@@ -179,7 +196,7 @@ class CompressionService : Service() {
         // Fallback to media store
         val contentValues = android.content.ContentValues().apply {
             put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/${ext}")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS + "/Compressed")
             }

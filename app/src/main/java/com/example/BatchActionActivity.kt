@@ -154,12 +154,14 @@ class BatchActionActivity : ComponentActivity() {
                             CompressionOptionsDialog(
                                 uris = initialUris,
                                 onDismiss = { finish() },
-                                onStartCompression = { uris, maxWidth, maxHeight ->
+                                onStartCompression = { uris, maxWidth, maxHeight, quality, format ->
                                     val serviceIntent = Intent(this@BatchActionActivity, com.example.service.CompressionService::class.java).apply {
                                         action = "START_BATCH"
                                         putStringArrayListExtra("uris", ArrayList(uris))
                                         putExtra("maxWidth", maxWidth)
                                         putExtra("maxHeight", maxHeight)
+                                        putExtra("quality", quality)
+                                        putExtra("format", format)
                                     }
                                     androidx.core.content.ContextCompat.startForegroundService(this@BatchActionActivity, serviceIntent)
                                     startedProcessing = true

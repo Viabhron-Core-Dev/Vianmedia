@@ -533,21 +533,9 @@ fun PlayerScreen(
         controller.setPlaybackSpeed(playbackSpeed)
         
 
-        val savedOrientation = settingsManager.getVideoOrientation(decodedUriString)
-        if (savedOrientation != null) {
-            context.findActivity()?.requestedOrientation = if (savedOrientation) {
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-            } else {
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            }
-        } else {
-            context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
-
         fun updateOrientation(videoSize: androidx.media3.common.VideoSize) {
             if (videoSize.width > 0 && videoSize.height > 0) {
                 val isPortrait = videoSize.height > videoSize.width
-                settingsManager.saveVideoOrientation(decodedUriString, isPortrait)
                 context.findActivity()?.requestedOrientation = if (isPortrait) {
                     android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                 } else {
@@ -555,6 +543,8 @@ fun PlayerScreen(
                 }
             }
         }
+
+        updateOrientation(controller.videoSize)
         val mainListener = object : androidx.media3.common.Player.Listener {
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                 // Restore track selection
@@ -642,14 +632,18 @@ fun PlayerScreen(
         
         val pipListener = object : androidx.media3.common.Player.Listener {
             override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
+                @Suppress("DEPRECATION")
                 val w = if (videoSize.unappliedRotationDegrees % 180 == 0) videoSize.width else videoSize.height
+                @Suppress("DEPRECATION")
                 val h = if (videoSize.unappliedRotationDegrees % 180 == 0) videoSize.height else videoSize.width
                 PipHelper.updatePipParams(context, controller, w, h)
             }
             override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
                 if (events.contains(androidx.media3.common.Player.EVENT_IS_PLAYING_CHANGED) || events.contains(androidx.media3.common.Player.EVENT_MEDIA_ITEM_TRANSITION)) {
                     val vs = player.videoSize
+                    @Suppress("DEPRECATION")
                     val w = if (vs.unappliedRotationDegrees % 180 == 0) vs.width else vs.height
+                    @Suppress("DEPRECATION")
                     val h = if (vs.unappliedRotationDegrees % 180 == 0) vs.height else vs.width
                     PipHelper.updatePipParams(context, player, w, h)
                 }
@@ -657,8 +651,10 @@ fun PlayerScreen(
         }
         controller.addListener(pipListener)
         val vs = controller.videoSize
-        val w = if (vs.unappliedRotationDegrees % 180 == 0) vs.width else vs.height
-        val h = if (vs.unappliedRotationDegrees % 180 == 0) vs.height else vs.width
+        @Suppress("DEPRECATION")
+                    val w = if (vs.unappliedRotationDegrees % 180 == 0) vs.width else vs.height
+        @Suppress("DEPRECATION")
+                    val h = if (vs.unappliedRotationDegrees % 180 == 0) vs.height else vs.width
         PipHelper.updatePipParams(context, controller, w, h)
         
         val pipReceiver = PipActionReceiver(controller)

@@ -284,7 +284,7 @@ fun AppNavigation(initialUris: List<String> = emptyList(), forceAction: String? 
                 batchCompressionUris = null
                 if (initialUris.isNotEmpty()) { (context as? android.app.Activity)?.finish() }
             },
-            onStartCompression = { urisToCompress, w, h ->
+            onStartCompression = { urisToCompress, w, h, q, f ->
                 val intent = android.content.Intent(context, com.example.service.CompressionService::class.java).apply {
                     putStringArrayListExtra("uris", java.util.ArrayList(urisToCompress))
                     putExtra("maxWidth", w)

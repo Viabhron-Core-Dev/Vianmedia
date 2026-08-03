@@ -236,6 +236,7 @@ fun VideoEditorScreen(
                 addListener(object : Player.Listener {
                     override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
                         if (videoSize.width > 0 && videoSize.height > 0) {
+                            @Suppress("DEPRECATION")
                             if (videoSize.unappliedRotationDegrees == 90 || videoSize.unappliedRotationDegrees == 270) {
                                 videoWidth = videoSize.height
                                 videoHeight = videoSize.width
@@ -256,6 +257,7 @@ fun VideoEditorScreen(
                 addListener(object : Player.Listener {
                     override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
                         if (videoSize.width > 0 && videoSize.height > 0) {
+                            @Suppress("DEPRECATION")
                             if (videoSize.unappliedRotationDegrees == 90 || videoSize.unappliedRotationDegrees == 270) {
                                 videoWidth = videoSize.height
                                 videoHeight = videoSize.width

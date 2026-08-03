@@ -3,54 +3,57 @@ import re
 with open("app/src/main/java/com/example/ui/screens/PlayerScreen.kt", "r") as f:
     content = f.read()
 
-pattern1 = r"""            override fun onVideoSizeChanged\(videoSize: VideoSize\) \{
-                if \(videoSize\.width > 0 && videoSize\.height > 0\) \{
-                    val isRotated = videoSize\.unappliedRotationDegrees == 90 \|\| videoSize\.unappliedRotationDegrees == 270
-                    val effectiveWidth = if \(isRotated\) videoSize\.height else videoSize\.width
-                    val effectiveHeight = if \(isRotated\) videoSize\.width else videoSize\.height
-                    context\.findActivity\(\)\?\.requestedOrientation = if \(effectiveWidth > effectiveHeight\) \{
-                        ActivityInfo\.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                    \} else \{
-                        ActivityInfo\.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-                    \}
-                \}
-            \}"""
-
-replacement1 = """            override fun onVideoSizeChanged(videoSize: VideoSize) {
-                if (videoSize.width > 0 && videoSize.height > 0) {
-                    context.findActivity()?.requestedOrientation = if (videoSize.width > videoSize.height) {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-                    }
-                }
-            }"""
-
-content = re.sub(pattern1, replacement1, content)
-
-pattern2 = r"""        val currentVideoSize = controller\.videoSize
-        if \(currentVideoSize\.width > 0 && currentVideoSize\.height > 0\) \{
-            val isRotated = currentVideoSize\.unappliedRotationDegrees == 90 \|\| currentVideoSize\.unappliedRotationDegrees == 270
-            val effectiveWidth = if \(isRotated\) currentVideoSize\.height else currentVideoSize\.width
-            val effectiveHeight = if \(isRotated\) currentVideoSize\.width else currentVideoSize\.height
-            context\.findActivity\(\)\?\.requestedOrientation = if \(effectiveWidth > effectiveHeight\) \{
-                ActivityInfo\.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            \} else \{
-                ActivityInfo\.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-            \}
-        \}"""
-
-replacement2 = """        val currentVideoSize = controller.videoSize
-        if (currentVideoSize.width > 0 && currentVideoSize.height > 0) {
-            context.findActivity()?.requestedOrientation = if (currentVideoSize.width > currentVideoSize.height) {
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            } else {
+old_block = """        val savedOrientation = settingsManager.getVideoOrientation(decodedUriString)
+        if (savedOrientation != null) {
+            context.findActivity()?.requestedOrientation = if (savedOrientation) {
                 ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            } else {
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            }
+        } else {
+            context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+
+        fun updateOrientation(videoSize: androidx.media3.common.VideoSize) {
+            if (videoSize.width > 0 && videoSize.height > 0) {
+                @Suppress("DEPRECATION")
+                val w = if (videoSize.unappliedRotationDegrees % 180 == 0) videoSize.width else videoSize.height
+                @Suppress("DEPRECATION")
+                val h = if (videoSize.unappliedRotationDegrees % 180 == 0) videoSize.height else videoSize.width
+                val isPortrait = h > w
+                settingsManager.saveVideoOrientation(decodedUriString, isPortrait)
+                context.findActivity()?.requestedOrientation = if (isPortrait) {
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                } else {
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                }
             }
         }"""
 
-content = re.sub(pattern2, replacement2, content)
+new_block = """        val savedOrientation = settingsManager.getVideoOrientation(decodedUriString)
+        if (savedOrientation != null) {
+            context.findActivity()?.requestedOrientation = if (savedOrientation) {
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            } else {
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            }
+        } else {
+            context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }"""
+
+content = content.replace(old_block, new_block)
+
+old_event = """            override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
+                if (events.contains(androidx.media3.common.Player.EVENT_VIDEO_SIZE_CHANGED)) {
+                    updateOrientation(player.videoSize)
+                }
+            }"""
+
+new_event = """            override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
+                // Do not auto-rotate based on video size, let native sensors take control
+            }"""
+
+content = content.replace(old_event, new_event)
 
 with open("app/src/main/java/com/example/ui/screens/PlayerScreen.kt", "w") as f:
     f.write(content)
-print("reverted")

@@ -1,4 +1,9 @@
-package com.example.ui.components
+import re
+
+with open("app/src/main/java/com/example/ui/components/CompressionOptionsDialog.kt", "r") as f:
+    content = f.read()
+
+new_dialog = """package com.example.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -124,3 +129,39 @@ fun CompressionOptionsDialog(
         }
     )
 }
+"""
+
+with open("app/src/main/java/com/example/ui/components/CompressionOptionsDialog.kt", "w") as f:
+    f.write(new_dialog)
+
+with open("app/src/main/java/com/example/ui/navigation/AppNavigation.kt", "r") as f:
+    nav_content = f.read()
+
+nav_content = nav_content.replace(
+    "onStartCompression = { urisToCompress, w, h ->",
+    "onStartCompression = { urisToCompress, w, h, q, f ->"
+)
+
+nav_content = nav_content.replace(
+    "putExtra(\"maxHeight\", h)\n                    context.startService(this)",
+    "putExtra(\"maxHeight\", h)\n                    putExtra(\"quality\", q)\n                    putExtra(\"format\", f)\n                    context.startService(this)"
+)
+
+with open("app/src/main/java/com/example/ui/navigation/AppNavigation.kt", "w") as f:
+    f.write(nav_content)
+
+with open("app/src/main/java/com/example/BatchActionActivity.kt", "r") as f:
+    batch_content = f.read()
+    
+batch_content = batch_content.replace(
+    "onStartCompression = { uris, maxWidth, maxHeight ->",
+    "onStartCompression = { uris, maxWidth, maxHeight, quality, format ->"
+)
+
+batch_content = batch_content.replace(
+    "putExtra(\"maxHeight\", maxHeight)\n                                    }",
+    "putExtra(\"maxHeight\", maxHeight)\n                                        putExtra(\"quality\", quality)\n                                        putExtra(\"format\", format)\n                                    }"
+)
+
+with open("app/src/main/java/com/example/BatchActionActivity.kt", "w") as f:
+    f.write(batch_content)

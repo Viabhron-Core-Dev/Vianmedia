@@ -1,14 +1,23 @@
 import re
 
-with open("app/src/main/java/com/example/MainActivity.kt", "r") as f:
+with open("app/src/main/java/com/example/ui/screens/PhotoEditorScreen.kt", "r") as f:
     content = f.read()
 
-# Replace intent logic
-old_intent = """              } else if (currentIntent?.action == android.content.Intent.ACTION_VIEW) {"""
-new_intent = """              } else if (currentIntent?.action == android.content.Intent.ACTION_VIEW || currentIntent?.action == "edit") {"""
+old_intent = """                        val intent = android.content.Intent(context, com.example.service.CompressionService::class.java).apply {
+                            putStringArrayListExtra("uris", java.util.ArrayList(listOf(editedUri)))
+                            putExtra("maxWidth", w)
+                            putExtra("maxHeight", h)
+                        }"""
+
+new_intent = """                        val intent = android.content.Intent(context, com.example.service.CompressionService::class.java).apply {
+                            putStringArrayListExtra("uris", java.util.ArrayList(listOf(editedUri)))
+                            putExtra("maxWidth", w)
+                            putExtra("maxHeight", h)
+                            putExtra("quality", q)
+                            putExtra("format", f)
+                        }"""
+
 content = content.replace(old_intent, new_intent)
 
-with open("app/src/main/java/com/example/MainActivity.kt", "w") as f:
+with open("app/src/main/java/com/example/ui/screens/PhotoEditorScreen.kt", "w") as f:
     f.write(content)
-
-print("Fixed intent logic in MainActivity")

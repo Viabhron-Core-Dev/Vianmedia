@@ -148,3 +148,23 @@ Implemented Audio Settings with Center Channel Extraction, Night Mode, and Equal
 Touched: app/src/main/java/com/example/ui/screens/AudioSettingsScreen.kt, app/src/main/java/com/example/ui/screens/SettingsScreen.kt, app/src/main/java/com/example/data/SettingsManager.kt, app/src/main/java/com/example/service/PlayerManager.kt, app/src/main/java/com/example/service/CenterChannelAudioProcessor.kt
 Added "Audio & EQ" panel in settings. Implemented a custom AudioProcessor for Mid/Side center extraction (vocal enhancement), Equalizer UI for vocal frequency control, and DynamicsProcessing (Night Mode) for dynamic range compression.
 Verified by local build.
+2026-08-03T09:51:10Z
+Fixed video orientation parsing bug across the app (PlayerScreen, PipHelper).
+Touched: app/src/main/java/com/example/ui/screens/PlayerScreen.kt, app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt
+Implemented the NextPlayer method for auto-rotation by properly swapping width and height when `unappliedRotationDegrees` is 90 or 270. Used `@Suppress("DEPRECATION")` to avoid build warnings since Media3 deprecated the field in Java.
+Verified by local build.
+2026-08-03T10:04:30Z
+Reverted the video orientation logic to default back to SCREEN_ORIENTATION_UNSPECIFIED.
+Touched: app/src/main/java/com/example/ui/screens/PlayerScreen.kt
+Removed the code that automatically locked the screen to portrait or landscape upon reading video size/rotation metadata (the "NextPlayer method" logic that was causing the problem). The default state has been reverted to `SCREEN_ORIENTATION_UNSPECIFIED` so the device's native sensors handle it natively.
+Verified by local build.
+2026-08-03T10:19:00Z
+Reverted orientation logic to the initial "just works" logic based purely on height > width check, removing the fallback to UNSPECIFIED.
+Touched: app/src/main/java/com/example/ui/screens/PlayerScreen.kt
+Re-implemented the exact `updateOrientation` function the user wanted where portrait videos force `SENSOR_PORTRAIT` and landscape videos force `SENSOR_LANDSCAPE` simply by checking if `videoSize.height > videoSize.width`, restoring the desired original behavior.
+Verified by local build.
+2026-08-03T10:59:00Z
+Enhanced batch image compression to support custom quality, formats, and orientation-aware scaling.
+Touched: app/src/main/java/com/example/ui/components/CompressionOptionsDialog.kt, app/src/main/java/com/example/ui/navigation/AppNavigation.kt, app/src/main/java/com/example/BatchActionActivity.kt, app/src/main/java/com/example/service/CompressionService.kt
+Updated the UI to include a slider for JPEG/PNG/WebP format selection and 0-100% quality adjustment. Fixed the landscape scaling bug by making the bounding box boundaries orientation-aware (so VGA bounds rotate to match portrait vs landscape).
+Verified by local build.

@@ -1,40 +1,34 @@
-import re
-
 with open("app/src/main/java/com/example/ui/screens/PlayerScreen.kt", "r") as f:
     content = f.read()
 
-# Replace updateOrientation usage in listener
-old_listener = """            override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == androidx.media3.common.Player.STATE_READY) {
-                    updateOrientation(controller.videoSize)
-                }"""
-new_listener = """            override fun onPlaybackStateChanged(playbackState: Int) {"""
-content = content.replace(old_listener, new_listener)
-
-old_video_size = """            override fun onVideoSizeChanged(videoSize: VideoSize) {
-                updateOrientation(videoSize)
-            }"""
-new_video_size = """            override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
-                if (events.contains(androidx.media3.common.Player.EVENT_VIDEO_SIZE_CHANGED)) {
-                    updateOrientation(player.videoSize)
+old_func = """        fun updateOrientation(videoSize: androidx.media3.common.VideoSize) {
+            if (videoSize.width > 0 && videoSize.height > 0) {
+                val isPortrait = videoSize.height > videoSize.width
+                settingsManager.saveVideoOrientation(decodedUriString, isPortrait)
+                context.findActivity()?.requestedOrientation = if (isPortrait) {
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                } else {
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                 }
-            }"""
-content = content.replace(old_video_size, new_video_size)
+            }
+        }"""
 
-# Add initial updateOrientation call
-old_hoisted = """        hoistedMainListener = mainListener
-        controller.addListener(mainListener)"""
-new_hoisted = """        hoistedMainListener = mainListener
-        controller.addListener(mainListener)
-        updateOrientation(controller.videoSize)"""
-content = content.replace(old_hoisted, new_hoisted)
+new_func = """        fun updateOrientation(videoSize: androidx.media3.common.VideoSize) {
+            if (videoSize.width > 0 && videoSize.height > 0) {
+                @Suppress("DEPRECATION")
+                val w = if (videoSize.unappliedRotationDegrees % 180 == 0) videoSize.width else videoSize.height
+                @Suppress("DEPRECATION")
+                val h = if (videoSize.unappliedRotationDegrees % 180 == 0) videoSize.height else videoSize.width
+                val isPortrait = h > w
+                settingsManager.saveVideoOrientation(decodedUriString, isPortrait)
+                context.findActivity()?.requestedOrientation = if (isPortrait) {
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                } else {
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                }
+            }
+        }"""
 
-# Make sure onDispose uses UNSPECIFIED
-old_dispose_user = "context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER"
-new_dispose_unspec = "context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED"
-content = content.replace(old_dispose_user, new_dispose_unspec)
-
+content = content.replace(old_func, new_func)
 with open("app/src/main/java/com/example/ui/screens/PlayerScreen.kt", "w") as f:
     f.write(content)
-
-print("Fixed orientation logic")

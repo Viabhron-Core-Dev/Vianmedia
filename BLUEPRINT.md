@@ -44,3 +44,6 @@
   - **Vocal Frequency EQ**: 5-band equalizer with presets for flat and vocal boost.
   - **Dynamic Range Compression (Night Mode)**: Uses `DynamicsProcessing` to level audio (quiet sounds boosted, loud sounds reduced).
   - **Center Channel Extraction**: Custom `AudioProcessor` that isolates the mid-channel, acting like a reverse karaoke effect to enhance dialogue.
+- **Bug Fix**: Fixed the auto-rotation video orientation logic to properly account for `unappliedRotationDegrees` (the "NextPlayer method"). This ensures videos filmed in portrait mode on phones actually trigger vertical auto-rotation properly instead of sideways landscape.
+- **Bug Fix**: Reverted orientation handling logic to `SCREEN_ORIENTATION_UNSPECIFIED`. Removed the forced programmatic locks based on video dimensions to let the device's native auto-rotate sensors take full control.
+- **Bug Fix & Enhancement**: Enhanced batch image compression to support custom quality (10-100%), formats (JPEG, PNG, WebP), and orientation-aware scaling bounds (fixing the landscape scaling issue).

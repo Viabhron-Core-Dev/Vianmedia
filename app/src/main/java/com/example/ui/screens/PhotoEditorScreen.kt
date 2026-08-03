@@ -358,7 +358,7 @@ fun PhotoEditorScreen(uriString: String, onNavigateBack: () -> Unit) {
         com.example.ui.components.CompressionOptionsDialog(
             uris = listOf(uriString),
             onDismiss = { showCompressionDialog = false },
-            onStartCompression = { uris, w, h ->
+            onStartCompression = { uris, w, h, q, f ->
                 coroutineScope.launch {
                     val editedUri = withContext(Dispatchers.IO) {
                         try {
@@ -434,6 +434,8 @@ fun PhotoEditorScreen(uriString: String, onNavigateBack: () -> Unit) {
                             putStringArrayListExtra("uris", java.util.ArrayList(listOf(editedUri)))
                             putExtra("maxWidth", w)
                             putExtra("maxHeight", h)
+                            putExtra("quality", q)
+                            putExtra("format", f)
                         }
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                             context.startForegroundService(intent)
