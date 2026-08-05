@@ -73,10 +73,16 @@ object PipHelper {
         return builder.build()
     }
 
+    private fun Context.findActivity(): android.app.Activity? = when (this) {
+        is android.app.Activity -> this
+        is android.content.ContextWrapper -> baseContext.findActivity()
+        else -> null
+    }
+
     fun updatePipParams(context: Context, player: Player?, width: Int = 0, height: Int = 0) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
-                val activity = (context as? android.app.Activity) ?: return
+                val activity = context.findActivity() ?: return
                 activity.setPictureInPictureParams(buildPipParams(context, player, width, height))
             } catch (e: Exception) {
                 com.example.LogKeeper.logError("PipHelper", "Error setting PIP params: ${e.message}", e)

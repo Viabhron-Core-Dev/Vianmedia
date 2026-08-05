@@ -1,138 +1,69 @@
 import re
 
-with open("app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt", "r") as f:
+with open("app/src/main/java/com/example/ui/screens/PlayerScreen.kt", "r") as f:
     content = f.read()
 
-new_block = """                val density = androidx.compose.ui.platform.LocalDensity.current
-                val isRotated = editState.rotateConfig == 90 || editState.rotateConfig == 270
-                val (visualWidth, visualHeight) = if (isRotated) {
-                    val rotatedRatio = 1f / ratio
-                    if (parentWidth / parentHeight > rotatedRatio) {
-                        Pair(parentHeight * rotatedRatio, parentHeight)
-                    } else {
-                        Pair(parentWidth, parentWidth / rotatedRatio)
-                    }
+new_update = """        fun updateOrientation(videoSize: androidx.media3.common.VideoSize) {
+            if (videoSize.width > 0 && videoSize.height > 0) {
+                @Suppress("DEPRECATION")
+                val w = if (videoSize.unappliedRotationDegrees % 180 == 0) videoSize.width else videoSize.height
+                @Suppress("DEPRECATION")
+                val h = if (videoSize.unappliedRotationDegrees % 180 == 0) videoSize.height else videoSize.width
+                val isPortrait = h > w
+                context.findActivity()?.requestedOrientation = if (isPortrait) {
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                 } else {
-                    if (parentWidth / parentHeight > ratio) {
-                        Pair(parentHeight * ratio, parentHeight)
-                    } else {
-                        Pair(parentWidth, parentWidth / ratio)
-                    }
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                 }
-                
-                val visualModifier = Modifier
-                    .requiredSize(
-                        width = with(density) { visualWidth.toDp() },
-                        height = with(density) { visualHeight.toDp() }
-                    )
-                    .background(Color.DarkGray)
-
-                val internalModifier = if (isRotated) {
-                    Modifier.requiredSize(
-                        width = with(density) { visualHeight.toDp() },
-                        height = with(density) { visualWidth.toDp() }
-                    )
+            }
+        }"""
+old_update = """        fun updateOrientation(videoSize: androidx.media3.common.VideoSize) {
+            if (videoSize.width > 0 && videoSize.height > 0) {
+                val isPortrait = videoSize.height > videoSize.width
+                context.findActivity()?.requestedOrientation = if (isPortrait) {
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                 } else {
-                    Modifier.fillMaxSize()
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                 }
+            }
+        }"""
+content = content.replace(new_update, old_update)
 
-                Box(modifier = visualModifier, contentAlignment = Alignment.Center) {
-                    if (exoPlayer != null) {
-                        AndroidView(
-                            factory = { ctx ->
-                                val view = android.view.LayoutInflater.from(ctx).inflate(com.example.R.layout.player_view_texture, null) as PlayerView
-                                view.apply {
-                                    player = exoPlayer
-                                    useController = true
-                                }
-                            },
-                            update = { view ->
-                                view.resizeMode = if (ratio != null) 3 else 0
-                            },
-                            modifier = internalModifier.graphicsLayer {
-                                clip = true
-                                rotationZ = editState.rotateConfig.toFloat()
-                                
-                                if (currentTool != VideoEditorTool.CROP && editState.cropRect == "Custom") {
-                                    val cw = editState.cropRight - editState.cropLeft
-                                    val ch = editState.cropBottom - editState.cropTop
-                                    if (cw > 0 && ch > 0) {
-                                        scaleX = (1f / cw)
-                                        scaleY = (1f / ch)
-                                        val cx = (editState.cropLeft + editState.cropRight) / 2f
-                                        val cy = (editState.cropTop + editState.cropBottom) / 2f
-                                        translationX = (0.5f - cx) * size.width * scaleX
-                                        translationY = (0.5f - cy) * size.height * scaleY
-                                    }
-                                }
-                            }
-                        )
-                    } else {
-                        Box(modifier = Modifier.fillMaxSize().background(Color.Black))
-                    }
-                }"""
-
-old_block = """                val previewModifier = if (editState.rotateConfig == 90 || editState.rotateConfig == 270) {
-                    val rotatedRatio = 1f / ratio
-                    val fitWidth: Float
-                    val fitHeight: Float
-                    if (parentWidth / parentHeight > rotatedRatio) {
-                        fitHeight = parentHeight
-                        fitWidth = fitHeight * rotatedRatio
-                    } else {
-                        fitWidth = parentWidth
-                        fitHeight = fitWidth / rotatedRatio
-                    }
-                    val density = androidx.compose.ui.platform.LocalDensity.current
-                    Modifier
-                        .requiredSize(
-                            width = with(density) { fitHeight.toDp() },
-                            height = with(density) { fitWidth.toDp() }
-                        )
-                        .background(Color.DarkGray)
-                } else {
-                    Modifier
-                        .aspectRatio(ratio)
-                        .background(Color.DarkGray)
+new_events = """            override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
+                if (events.contains(androidx.media3.common.Player.EVENT_VIDEO_SIZE_CHANGED) || events.contains(androidx.media3.common.Player.EVENT_MEDIA_ITEM_TRANSITION)) {
+                    updateOrientation(player.videoSize)
                 }
-                if (exoPlayer != null) {
-                    AndroidView(
-                        factory = { ctx ->
-                            val view = android.view.LayoutInflater.from(ctx).inflate(com.example.R.layout.player_view_texture, null) as PlayerView
-                            view.apply {
-                                player = exoPlayer
-                                useController = true
-                            }
-                        },
-                        update = { view ->
-                            view.resizeMode = if (ratio != null) 3 else 0
-                        },
-                        modifier = previewModifier.graphicsLayer {
-                            clip = true
-                            rotationZ = editState.rotateConfig.toFloat()
-                            
-                            if (currentTool != VideoEditorTool.CROP && editState.cropRect == "Custom") {
-                                val cw = editState.cropRight - editState.cropLeft
-                                val ch = editState.cropBottom - editState.cropTop
-                                if (cw > 0 && ch > 0) {
-                                    scaleX = (1f / cw)
-                                    scaleY = (1f / ch)
-                                    val cx = (editState.cropLeft + editState.cropRight) / 2f
-                                    val cy = (editState.cropTop + editState.cropBottom) / 2f
-                                    translationX = (0.5f - cx) * size.width * scaleX
-                                    translationY = (0.5f - cy) * size.height * scaleY
-                                }
-                            }
-                        }
-                    )
-                } else {
-                    Box(modifier = previewModifier.background(Color.Black))
-                }"""
+            }"""
+old_events = """            override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
+                if (events.contains(androidx.media3.common.Player.EVENT_VIDEO_SIZE_CHANGED)) {
+                    updateOrientation(player.videoSize)
+                }
+            }"""
+content = content.replace(new_events, old_events)
 
-if new_block in content:
-    content = content.replace(new_block, old_block)
-    with open("app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt", "w") as f:
-        f.write(content)
-    print("Reverted successfully")
-else:
-    print("New block not found!")
+new_pip_check = """                                    if (mode != android.app.AppOpsManager.MODE_ALLOWED && mode != android.app.AppOpsManager.MODE_DEFAULT) {"""
+old_pip_check = """                                    if (mode != android.app.AppOpsManager.MODE_ALLOWED) {"""
+content = content.replace(new_pip_check, old_pip_check)
+
+new_pip_call = """                                                val vs = mediaController?.videoSize
+                                                val rot = vs?.unappliedRotationDegrees ?: 0
+                                                val width = if (rot % 180 == 0) vs?.width ?: 0 else vs?.height ?: 0
+                                                val height = if (rot % 180 == 0) vs?.height ?: 0 else vs?.width ?: 0
+                                                val params = PipHelper.buildPipParams(context, mediaController, width, height)"""
+old_pip_call = """                                                val width = mediaController?.videoSize?.width ?: 0
+                                                val height = mediaController?.videoSize?.height ?: 0
+                                                val params = PipHelper.buildPipParams(context, mediaController, width, height)"""
+content = content.replace(new_pip_call, old_pip_call)
+
+with open("app/src/main/java/com/example/ui/screens/PlayerScreen.kt", "w") as f:
+    f.write(content)
+
+with open("app/src/main/java/com/example/ui/components/MiniPlayerOverlay.kt", "r") as f:
+    overlay_content = f.read()
+
+new_overlay_check = """                        if (mode == android.app.AppOpsManager.MODE_ALLOWED || mode == android.app.AppOpsManager.MODE_DEFAULT) {"""
+old_overlay_check = """                        if (mode == android.app.AppOpsManager.MODE_ALLOWED) {"""
+overlay_content = overlay_content.replace(new_overlay_check, old_overlay_check)
+
+with open("app/src/main/java/com/example/ui/components/MiniPlayerOverlay.kt", "w") as f:
+    f.write(overlay_content)

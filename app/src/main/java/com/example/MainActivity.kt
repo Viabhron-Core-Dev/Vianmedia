@@ -27,6 +27,26 @@ import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
 
+  override fun onUserLeaveHint() {
+      super.onUserLeaveHint()
+      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+          val player = com.example.service.PlayerManager.exoPlayer
+          if (player != null && player.isPlaying) {
+              val vs = player.videoSize
+              val rot = vs.unappliedRotationDegrees
+              @Suppress("DEPRECATION")
+              val width = if (rot % 180 == 0) vs.width else vs.height
+              @Suppress("DEPRECATION")
+              val height = if (rot % 180 == 0) vs.height else vs.width
+              try {
+                  enterPictureInPictureMode(com.example.ui.screens.PipHelper.buildPipParams(this, player, width, height))
+              } catch (e: Exception) {
+                  LogKeeper.logError("MainActivity", "Error entering PiP on user leave hint: ${e.message}", e)
+              }
+          }
+      }
+  }
+
   override fun onDestroy() {
       super.onDestroy()
       try {

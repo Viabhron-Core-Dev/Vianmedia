@@ -155,17 +155,25 @@ fun MiniPlayerOverlay(
                 Row {
                     val context = androidx.compose.ui.platform.LocalContext.current
                     IconButton(onClick = {
-                        val appOps = context.getSystemService(android.content.Context.APP_OPS_SERVICE) as android.app.AppOpsManager
-                        val mode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                            appOps.unsafeCheckOpNoThrow(android.app.AppOpsManager.OPSTR_PICTURE_IN_PICTURE, android.os.Process.myUid(), context.packageName)
-                        } else {
-                            appOps.checkOpNoThrow(android.app.AppOpsManager.OPSTR_PICTURE_IN_PICTURE, android.os.Process.myUid(), context.packageName)
-                        }
-                        if (mode == android.app.AppOpsManager.MODE_ALLOWED) {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                             val activity = context as? android.app.Activity ?: (context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity
-                            activity?.enterPictureInPictureMode(android.app.PictureInPictureParams.Builder().build())
-                        } else {
-                            android.widget.Toast.makeText(context, "PiP permission not granted", android.widget.Toast.LENGTH_SHORT).show()
+                            var entered = false
+                            try {
+                                if (activity != null) {
+                                    entered = activity.enterPictureInPictureMode(android.app.PictureInPictureParams.Builder().build())
+                                }
+                            } catch (e: Exception) { }
+                            
+                            if (!entered) {
+                                try {
+                                    val intent = android.content.Intent("android.settings.PICTURE_IN_PICTURE_SETTINGS").apply {
+                                        data = android.net.Uri.fromParts("package", context.packageName, null)
+                                    }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(context, "PiP not available", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         }
                     }, modifier = Modifier.size(32.dp)) {
                         Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_pip), contentDescription = "PIP", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
