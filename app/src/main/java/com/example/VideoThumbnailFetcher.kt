@@ -23,7 +23,20 @@ class VideoThumbnailFetcher(
         val bitmap = try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val size = 512
-                context.contentResolver.loadThumbnail(uri, Size(size, size), null)
+                kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+                    val signal = android.os.CancellationSignal()
+                    cont.invokeOnCancellation { signal.cancel() }
+                    try {
+                        val bmp = context.contentResolver.loadThumbnail(uri, Size(size, size), signal)
+                        cont.resume(bmp) { }
+                    } catch (e: Exception) {
+                        if (e !is android.os.OperationCanceledException) {
+                            cont.resume(null) { }
+                        } else {
+                            cont.cancel(e)
+                        }
+                    }
+                }
             } else {
                 val idStr = uri.lastPathSegment
                 val id = idStr?.toLongOrNull()

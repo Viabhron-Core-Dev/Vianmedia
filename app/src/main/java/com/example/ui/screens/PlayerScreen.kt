@@ -525,6 +525,41 @@ fun PlayerScreen(
 
         val controller = mediaController ?: return@DisposableEffect onDispose {}
         
+        // Lightweight check for dimensions on start
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try {
+                val retriever = android.media.MediaMetadataRetriever()
+                retriever.setDataSource(context, android.net.Uri.parse(decodedUriString))
+                val widthStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+                val heightStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+                val rotationStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
+                retriever.release()
+                if (widthStr != null && heightStr != null) {
+                    var w = widthStr.toIntOrNull() ?: 0
+                    var h = heightStr.toIntOrNull() ?: 0
+                    val rot = rotationStr?.toIntOrNull() ?: 0
+                    if (rot == 90 || rot == 270) {
+                        val temp = w
+                        w = h
+                        h = temp
+                    }
+                    if (w > 0 && h > 0) {
+                        val isVideoPortrait = h > w
+                        com.example.LogKeeper.log("Lightweight check: rot=$rot w=$w h=$h isPortrait=$isVideoPortrait", "PlayerScreen")
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            context.findActivity()?.requestedOrientation = if (isVideoPortrait) {
+                                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                            } else {
+                                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                com.example.LogKeeper.logError("PlayerScreen", "Error in lightweight dimension check", e)
+            }
+        }
+        
         val savedGain = settingsManager.boostGainMb
         boostGainMb = savedGain
         if (savedGain > 0) {
@@ -540,6 +575,7 @@ fun PlayerScreen(
                 @Suppress("DEPRECATION")
                 val h = if (videoSize.unappliedRotationDegrees % 180 == 0) videoSize.height else videoSize.width
                 val isPortrait = h > w
+                com.example.LogKeeper.log("updateOrientation called with videoSize: ${videoSize.width}x${videoSize.height} rot=${videoSize.unappliedRotationDegrees}. isPortrait=$isPortrait", "PlayerScreen")
                 context.findActivity()?.requestedOrientation = if (isPortrait) {
                     android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                 } else {
@@ -548,7 +584,7 @@ fun PlayerScreen(
             }
         }
 
-        updateOrientation(controller.videoSize)
+        // updateOrientation(controller.videoSize) removed to prevent old video size from forcing incorrect orientation
         val mainListener = object : androidx.media3.common.Player.Listener {
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                 // Restore track selection
@@ -1563,38 +1599,18 @@ fun PlayerScreen(
                                     Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_playlist), contentDescription = "Minimize to Mini Player", tint = Color.White, modifier = Modifier.size(20.dp))
                                 }
                                 IconButton(modifier = Modifier.size(36.dp), onClick = {
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                        try {
-                                            val vs = mediaController?.videoSize
-                                            val rot = vs?.unappliedRotationDegrees ?: 0
-                                            @Suppress("DEPRECATION")
-                                            val width = if (rot % 180 == 0) vs?.width ?: 0 else vs?.height ?: 0
-                                            @Suppress("DEPRECATION")
-                                            val height = if (rot % 180 == 0) vs?.height ?: 0 else vs?.width ?: 0
-                                            val params = PipHelper.buildPipParams(context, mediaController, width, height)
-                                            val activity = context.findActivity()
-                                            
-                                            var entered = false
-                                            if (activity != null) {
-                                                entered = activity.enterPictureInPictureMode(params)
-                                            }
-                                            
-                                            if (!entered) {
-                                                val intent = android.content.Intent("android.settings.PICTURE_IN_PICTURE_SETTINGS").apply {
-                                                    data = android.net.Uri.fromParts("package", context.packageName, null)
-                                                }
-                                                context.startActivity(intent)
-                                            }
-                                        } catch (e: Exception) {
-                                            try {
-                                                val intent = android.content.Intent("android.settings.PICTURE_IN_PICTURE_SETTINGS").apply {
-                                                    data = android.net.Uri.fromParts("package", context.packageName, null)
-                                                }
-                                                context.startActivity(intent)
-                                            } catch (e2: Exception) {
-                                                com.example.LogKeeper.logError("PlayerScreen", "Could not open PiP settings", e2)
-                                            }
-                                        }
+                                    if (android.provider.Settings.canDrawOverlays(context)) {
+                                        val overlayIntent = android.content.Intent("com.example.ACTION_WIDGET_COMMAND")
+                                        overlayIntent.putExtra("command", "ACTION_VIDEO_OVERLAY")
+                                        overlayIntent.setPackage(context.packageName)
+                                        context.sendBroadcast(overlayIntent)
+                                        forceBackgroundPlay.set(true)
+                                        backgroundPlayEnabled = true
+                                        onNavigateBack()
+                                    } else {
+                                        val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
+                                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        context.startActivity(intent)
                                     }
                                 }) {
                                     Icon(modifier = Modifier.size(20.dp), imageVector = Icons.Filled.PictureInPictureAlt, contentDescription = "PiP", tint = Color.White)

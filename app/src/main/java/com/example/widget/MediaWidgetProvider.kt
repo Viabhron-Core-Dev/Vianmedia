@@ -260,7 +260,7 @@ class MediaWidgetProvider : AppWidgetProvider() {
 
         // Media controller commands
         val widgetAction = intent.getStringExtra("WIDGET_ACTION")
-        val isMediaCommand = action in listOf("ACTION_PLAY_PAUSE", "ACTION_PREV", "ACTION_NEXT", "ACTION_LOOP", "ACTION_SHUFFLE", "ACTION_MINIPLAYER", "ACTION_CLOSE") || 
+        val isMediaCommand = action in listOf("ACTION_PLAY_PAUSE", "ACTION_PREV", "ACTION_NEXT", "ACTION_LOOP", "ACTION_SHUFFLE", "ACTION_MINIPLAYER", "ACTION_CLOSE", "ACTION_PIP") || 
                              (action == "ACTION_PLAY_ITEM" && (widgetAction == "PLAY_FILE" || widgetAction == "PLAYLIST_ITEM" || widgetAction == null))
 
         if (isMediaCommand) {
@@ -298,6 +298,11 @@ class MediaWidgetProvider : AppWidgetProvider() {
                         val serviceIntent = Intent("com.example.ACTION_WIDGET_COMMAND")
                         serviceIntent.setPackage(context.packageName)
                         serviceIntent.putExtra("command", action)
+                        context.sendBroadcast(serviceIntent)
+                                        } else if (action == "ACTION_PIP") {
+                        val serviceIntent = Intent("com.example.ACTION_WIDGET_COMMAND")
+                        serviceIntent.setPackage(context.packageName)
+                        serviceIntent.putExtra("command", "ACTION_VIDEO_OVERLAY")
                         context.sendBroadcast(serviceIntent)
                     } else if (action == "ACTION_PLAY_ITEM") {
                         if (widgetAction == "PLAY_FILE") {

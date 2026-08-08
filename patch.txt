@@ -1,0 +1,30 @@
+--- app/src/main/java/com/example/service/PlaybackService.kt
++++ app/src/main/java/com/example/service/PlaybackService.kt
+@@ -192,7 +192,7 @@
+                         } else {
+-                            showOverlay()
++                            showOverlay(false)
+                         }
+@@ -285,13 +285,13 @@
+ 
+     @SuppressLint("ClickableViewAccessibility")
+-    private fun showOverlay() {
++    private fun showOverlay(startInVideoMode: Boolean = false) {
+         if (composeView != null) return
+         val cv = ComposeView(this)
+         composeView = cv
+         cv.setViewTreeLifecycleOwner(this@PlaybackService)
+         cv.setViewTreeViewModelStoreOwner(this@PlaybackService)
+         cv.setViewTreeSavedStateRegistryOwner(this@PlaybackService)
+ 
+         val prefs = getSharedPreferences("MiniPlayerPrefs", android.content.Context.MODE_PRIVATE)
+ 
+         cv.setContent {
+             var isMinimized by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+-            var isVideoMode by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
++            var isVideoMode by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(startInVideoMode) }
+ 
+@@ -536,2 +536,3 @@
+-                "ACTION_MINIPLAYER", "ACTION_OVERLAY" -> showOverlay()
++                "ACTION_MINIPLAYER", "ACTION_OVERLAY" -> showOverlay(false)
++                "ACTION_VIDEO_OVERLAY" -> showOverlay(true)

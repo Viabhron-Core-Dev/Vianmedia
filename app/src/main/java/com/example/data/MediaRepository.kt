@@ -125,7 +125,7 @@ class MediaRepository(private val context: Context) {
                     val mimeType = cursor.getString(mimeCol) ?: ""
 
                     val mediaType = when {
-                        mimeType.startsWith("video/") || ext in listOf("mp4", "mkv", "webm", "avi", "3gp", "mov", "flv", "wmv", "m4v") -> MediaType.VIDEO
+                        mimeType.startsWith("video/") || ext in listOf("mp4", "mkv", "webm", "avi", "3gp", "mov", "flv", "wmv", "m4v", "m4s", "m3u8", "ts") -> MediaType.VIDEO
                         mimeType.startsWith("image/") || ext in listOf("jpg", "jpeg", "png", "webp", "heic") -> MediaType.IMAGE
                         else -> MediaType.AUDIO
                     }
@@ -239,7 +239,7 @@ class MediaRepository(private val context: Context) {
                         if (extensions.contains(ext) || (ext.isEmpty() && mimeType.startsWith("video/"))) {
                             val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
                             val mediaType = when {
-                                mimeType.startsWith("video/") || ext in listOf("mp4", "mkv", "webm", "avi", "3gp", "mov", "flv", "wmv", "m4v") -> MediaType.VIDEO
+                                mimeType.startsWith("video/") || ext in listOf("mp4", "mkv", "webm", "avi", "3gp", "mov", "flv", "wmv", "m4v", "m4s", "m3u8", "ts") -> MediaType.VIDEO
                                 mimeType.startsWith("image/") || ext in listOf("jpg", "jpeg", "png", "webp", "heic") -> MediaType.IMAGE
                                 else -> MediaType.AUDIO
                             }

@@ -37,11 +37,14 @@ fun AppNavigation(initialUris: List<String> = emptyList(), forceAction: String? 
     
     val intentDest = remember(initialUris, forceAction) {
         if (initialUris.isNotEmpty()) {
-            val mimeType = context.contentResolver.getType(android.net.Uri.parse(initialUris.first()))
-            val isImage = mimeType?.startsWith("image/") == true
-            val isAudio = mimeType?.startsWith("audio/") == true
-            val isVideo = mimeType?.startsWith("video/") == true
-            val isAnimatedImage = mimeType == "image/gif" || mimeType == "image/webp"
+            val uriStr = initialUris.first()
+            val mimeType = context.contentResolver.getType(android.net.Uri.parse(uriStr))?.lowercase()
+            val ext = uriStr.substringAfterLast('.', "").substringBefore('?').lowercase()
+            
+            val isAnimatedImage = mimeType == "image/gif" || mimeType == "image/webp" || ext == "gif" || ext == "webp"
+            val isImage = mimeType?.startsWith("image/") == true || ext in listOf("jpg", "jpeg", "png", "heic") || isAnimatedImage
+            val isAudio = mimeType?.startsWith("audio/") == true || ext in listOf("mp3", "wav", "ogg", "m4a", "flac", "aac")
+            val isVideo = mimeType?.startsWith("video/") == true || ext in listOf("mp4", "mkv", "webm", "avi", "3gp", "mov", "flv", "wmv", "m4v", "m4s", "m3u8", "ts")
             
             if (forceAction == "play" || forceAction == "com.example.ACTION_OPEN_PLAYER") {
                 val encodedUri = android.util.Base64.encodeToString(initialUris.first().toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)

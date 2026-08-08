@@ -1,0 +1,51 @@
+--- app/src/main/java/com/example/ui/screens/PlayerScreen.kt
++++ app/src/main/java/com/example/ui/screens/PlayerScreen.kt
+@@ -1565,33 +1565,13 @@
+                                 IconButton(modifier = Modifier.size(36.dp), onClick = {
+-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+-                                        try {
+-                                            val vs = mediaController?.videoSize
+-                                            val rot = vs?.unappliedRotationDegrees ?: 0
+-                                            @Suppress("DEPRECATION")
+-                                            val width = if (rot % 180 == 0) vs?.width ?: 0 else vs?.height ?: 0
+-                                            @Suppress("DEPRECATION")
+-                                            val height = if (rot % 180 == 0) vs?.height ?: 0 else vs?.width ?: 0
+-                                            val params = PipHelper.buildPipParams(context, mediaController, width, height)
+-                                            val activity = context.findActivity()
+-                                            
+-                                            var entered = false
+-                                            if (activity != null) {
+-                                                entered = activity.enterPictureInPictureMode(params)
+-                                            }
+-                                            
+-                                            if (!entered) {
+-                                                val intent = android.content.Intent("android.settings.PICTURE_IN_PICTURE_SETTINGS").apply {
+-                                                    data = android.net.Uri.fromParts("package", context.packageName, null)
+-                                                }
+-                                                context.startActivity(intent)
+-                                            }
+-                                        } catch (e: Exception) {
+-                                            try {
+-                                                val intent = android.content.Intent("android.settings.PICTURE_IN_PICTURE_SETTINGS").apply {
+-                                                    data = android.net.Uri.fromParts("package", context.packageName, null)
+-                                                }
+-                                                context.startActivity(intent)
+-                                            } catch (e2: Exception) {
+-                                                com.example.LogKeeper.logError("PlayerScreen", "Could not open PiP settings", e2)
+-                                            }
+-                                        }
+-                                    }
++                                    if (android.provider.Settings.canDrawOverlays(context)) {
++                                        val overlayIntent = android.content.Intent("com.example.ACTION_WIDGET_COMMAND")
++                                        overlayIntent.putExtra("command", "ACTION_VIDEO_OVERLAY")
++                                        overlayIntent.setPackage(context.packageName)
++                                        context.sendBroadcast(overlayIntent)
++                                        forceBackgroundPlay.set(true)
++                                        backgroundPlayEnabled = true
++                                        onNavigateBack()
++                                    } else {
++                                        val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
++                                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
++                                        context.startActivity(intent)
++                                    }
+                                 }) {

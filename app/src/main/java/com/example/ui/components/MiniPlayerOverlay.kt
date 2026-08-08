@@ -34,7 +34,8 @@ fun MiniPlayerOverlay(
     onDrag: (Float, Float) -> Unit,
     onResize: (Float, Float) -> Unit,
     isMinimizedExternal: Boolean = false,
-    onMinimizeChange: (Boolean) -> Unit = {}
+    onMinimizeChange: (Boolean) -> Unit = {},
+    onSwitchToVideo: () -> Unit = {}
 ) {
     var isPlaying by remember { mutableStateOf(player?.isPlaying == true) }
     var currentPosition by remember { mutableLongStateOf(player?.currentPosition ?: 0L) }
@@ -154,6 +155,9 @@ fun MiniPlayerOverlay(
                 )
                 Row {
                     val context = androidx.compose.ui.platform.LocalContext.current
+                    IconButton(onClick = onSwitchToVideo) {
+                        Icon(Icons.Filled.VideoLibrary, contentDescription = "Switch to Video", tint = MaterialTheme.colorScheme.primary)
+                    }
                     IconButton(onClick = {
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                             val activity = context as? android.app.Activity ?: (context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity

@@ -44,6 +44,7 @@ import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 import com.example.LogKeeper
@@ -115,12 +116,15 @@ fun VideoEditorScreen(
     val uri = Uri.parse(effectiveUri)
 
     LaunchedEffect(uriString) {
-        LogKeeper.log("Starting pre-conversion for mimeType: $mimeType uri: $uriString", "VideoEditor")
-        if (mimeType == "image/gif" || mimeType == "image/webp") {
+        val extRaw = uriString.substringAfterLast('.', "").substringBefore('?').lowercase()
+        val isM4s = extRaw == "m4s" || (mimeType == "video/mp4" && uriString.endsWith(".m4s", true))
+        LogKeeper.log("Starting pre-conversion for mimeType: $mimeType uri: $uriString ext: $extRaw", "VideoEditor")
+        
+        if (mimeType == "image/gif" || mimeType == "image/webp" || isM4s) {
             isConverting = true
             try {
                 // Step 1: Copy URI to cache file on IO thread
-                val ext = if (mimeType == "image/gif") "gif" else "webp"
+                val ext = if (mimeType == "image/gif") "gif" else if (mimeType == "image/webp") "webp" else "m4s"
                 val inputFile = withContext(Dispatchers.IO) {
                     val f = java.io.File(context.cacheDir, "editor_in_${System.currentTimeMillis()}.$ext")
                     context.contentResolver.openInputStream(Uri.parse(uriString))?.use { input ->
@@ -202,7 +206,7 @@ fun VideoEditorScreen(
                             }
                             framesDir.deleteRecursively()
                         }
-                    }
+                    } 
                 } else if (mimeType == "image/gif") {
                     withContext(Dispatchers.IO) {
                         val cmd = "-y -i '${inputFile.absolutePath}' -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" -vcodec libx264 -crf 23 -preset ultrafast -pix_fmt yuv420p '${outputFile.absolutePath}'"
@@ -214,11 +218,56 @@ fun VideoEditorScreen(
                             LogKeeper.logError("VideoEditor", "FFmpeg GIF/WEBP→MP4 failed: ${session.returnCode}\nLogs: ${session.allLogsAsString}", Exception())
                         }
                     }
+                } else if (ext == "m4s") {
+                    withContext(Dispatchers.IO) {
+                        val cmd = "-y -i '${inputFile.absolutePath}' -vcodec libx264 -preset ultrafast -crf 23 -acodec aac '${outputFile.absolutePath}'"
+                        val session = com.arthenica.ffmpegkit.FFmpegKit.execute(cmd)
+                        if (com.arthenica.ffmpegkit.ReturnCode.isSuccess(session.returnCode) && outputFile.exists()) {
+                            convertedUri = outputFile.toURI().toString()
+                            LogKeeper.log("Pre-conversion complete (m4s). convertedUri: $convertedUri", "VideoEditor")
+                        } else {
+                            LogKeeper.logError("VideoEditor", "FFmpeg m4s→MP4 failed: ${session.returnCode}\nLogs: ${session.allLogsAsString}", Exception())
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 LogKeeper.logError("VideoEditor", "Pre-conversion failed: ${e.message}", e)
             }
             isConverting = false
+        }
+    }
+
+    var playerError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    fun repairVideo() {
+        scope.launch {
+            playerError = null
+            isConverting = true
+            try {
+                val inputFile = withContext(Dispatchers.IO) {
+                    val f = java.io.File(context.cacheDir, "editor_in_${System.currentTimeMillis()}.mp4")
+                    context.contentResolver.openInputStream(Uri.parse(uriString))?.use { input ->
+                        f.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    f
+                }
+                val outputFile = java.io.File(context.cacheDir, "editor_converted_${System.currentTimeMillis()}.mp4")
+                withContext(Dispatchers.IO) {
+                    val cmd = "-y -i '${inputFile.absolutePath}' -vcodec libx264 -preset ultrafast -crf 23 -acodec aac '${outputFile.absolutePath}'"
+                    val session = com.arthenica.ffmpegkit.FFmpegKit.execute(cmd)
+                    if (com.arthenica.ffmpegkit.ReturnCode.isSuccess(session.returnCode) && outputFile.exists()) {
+                        convertedUri = outputFile.toURI().toString()
+                        LogKeeper.log("Repair complete. convertedUri: $convertedUri", "VideoEditor")
+                    } else {
+                        LogKeeper.logError("VideoEditor", "FFmpeg repair failed: ${session.returnCode}\nLogs: ${session.allLogsAsString}", Exception())
+                    }
+                    inputFile.delete()
+                }
+            } catch (e: Exception) {
+                LogKeeper.logError("VideoEditor", "Repair failed: ${e.message}", e)
+            } finally {
+                isConverting = false
+            }
         }
     }
 
@@ -276,6 +325,10 @@ fun VideoEditorScreen(
         DisposableEffect(exoPlayer) {
             LogKeeper.log("ExoPlayer initialized for video editor", "VideoEditor")
             val listener = object : Player.Listener {
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    LogKeeper.logError("VideoEditor", "Player error: ${error.message}", error)
+                    playerError = "Playback error. The format might not be fully supported by the player.\nWould you like to repair/convert it with FFmpeg?"
+                }
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
                         val dur = exoPlayer.duration
@@ -310,23 +363,9 @@ fun VideoEditorScreen(
             effects.add(androidx.media3.effect.ScaleAndRotateTransformation.Builder().setRotationDegrees(editState.rotateConfig.toFloat()).build())
         }
         
-        if (editState.cropRect == "Center Crop") {
-            effects.add(androidx.media3.effect.Presentation.createForAspectRatio(1f, androidx.media3.effect.Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP))
-        } else if (editState.cropRect == "Custom" && currentTool != VideoEditorTool.CROP) {
-            val cw = editState.cropRight - editState.cropLeft
-            val ch = editState.cropBottom - editState.cropTop
-            if (cw > 0 && ch > 0) {
-                val left = editState.cropLeft * 2f - 1f
-                val right = editState.cropRight * 2f - 1f
-                val top = 1f - editState.cropTop * 2f
-                val bottom = 1f - editState.cropBottom * 2f
-                effects.add(androidx.media3.effect.Crop(left, right, bottom, top))
-            }
-        }
-        
         if (currentTool != VideoEditorTool.CROP) {
-            if (editState.aspectRatio != "Original" && editState.cropRect != "Center Crop") {
-                val ratioFloat = when (editState.aspectRatio) {
+            if (editState.cropRect != "None" && editState.cropRect != "Custom") {
+                val ratioFloat = when (editState.cropRect) {
                     "16:9" -> 16f / 9f
                     "9:16" -> 9f / 16f
                     "1:1" -> 1f
@@ -334,8 +373,30 @@ fun VideoEditorScreen(
                     "21:9" -> 21f / 9f
                     else -> 1f
                 }
-                effects.add(androidx.media3.effect.Presentation.createForAspectRatio(ratioFloat, androidx.media3.effect.Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP))
+                effects.add(androidx.media3.effect.Presentation.createForAspectRatio(ratioFloat, 1)) // 1 = LAYOUT_SCALE_TO_FIT_WITH_CROP
+            } else if (editState.cropRect == "Custom") {
+                val cw = editState.cropRight - editState.cropLeft
+                val ch = editState.cropBottom - editState.cropTop
+                if (cw > 0 && ch > 0) {
+                    val left = editState.cropLeft * 2f - 1f
+                    val right = editState.cropRight * 2f - 1f
+                    val top = 1f - editState.cropTop * 2f
+                    val bottom = 1f - editState.cropBottom * 2f
+                    effects.add(androidx.media3.effect.Crop(left, right, bottom, top))
+                }
             }
+        }
+        
+        if (editState.aspectRatio != "Original") {
+            val ratioFloat = when (editState.aspectRatio) {
+                "16:9" -> 16f / 9f
+                "9:16" -> 9f / 16f
+                "1:1" -> 1f
+                "4:3" -> 4f / 3f
+                "21:9" -> 21f / 9f
+                else -> 1f
+            }
+            effects.add(androidx.media3.effect.Presentation.createForAspectRatio(ratioFloat, 2)) // 2 = LAYOUT_STRETCH_TO_FIT
         }
         
         exoPlayer?.setVideoEffects(effects)
@@ -349,6 +410,87 @@ fun VideoEditorScreen(
     LaunchedEffect(editState.volume) {
         LogKeeper.log("Video playback volume adjusted to: ${editState.volume * 100}%", "VideoEditor")
         exoPlayer?.volume = editState.volume
+    }
+
+    LaunchedEffect(currentTool, editState.isCutMode, editState.isDoubleTrim, editState.trimStartMs, editState.trimEndMs, editState.doubleTrimStart1Ms, editState.doubleTrimEnd1Ms, editState.doubleTrimStart2Ms, editState.doubleTrimEnd2Ms, durationMs) {
+        if (exoPlayer == null) return@LaunchedEffect
+        if (durationMs <= 1L) return@LaunchedEffect
+
+        if (currentTool == VideoEditorTool.TRIM) {
+            val item = androidx.media3.common.MediaItem.Builder().setUri(uri).build()
+            exoPlayer.setMediaItem(item)
+            exoPlayer.repeatMode = androidx.media3.common.Player.REPEAT_MODE_ONE
+            exoPlayer.prepare()
+            exoPlayer.playWhenReady = true
+        } else {
+            val items = mutableListOf<androidx.media3.common.MediaItem>()
+            if (editState.isDoubleTrim) {
+                if (editState.doubleTrimEnd1Ms > editState.doubleTrimStart1Ms) {
+                    items.add(
+                        androidx.media3.common.MediaItem.Builder().setUri(uri)
+                            .setClippingConfiguration(androidx.media3.common.MediaItem.ClippingConfiguration.Builder().setStartPositionMs(editState.doubleTrimStart1Ms).setEndPositionMs(editState.doubleTrimEnd1Ms).build())
+                            .build()
+                    )
+                }
+                if (editState.doubleTrimEnd2Ms > editState.doubleTrimStart2Ms) {
+                    items.add(
+                        androidx.media3.common.MediaItem.Builder().setUri(uri)
+                            .setClippingConfiguration(androidx.media3.common.MediaItem.ClippingConfiguration.Builder().setStartPositionMs(editState.doubleTrimStart2Ms).setEndPositionMs(editState.doubleTrimEnd2Ms).build())
+                            .build()
+                    )
+                }
+            } else if (editState.isCutMode) {
+                if (editState.trimStartMs > 0) {
+                    items.add(
+                        androidx.media3.common.MediaItem.Builder().setUri(uri)
+                            .setClippingConfiguration(androidx.media3.common.MediaItem.ClippingConfiguration.Builder().setStartPositionMs(0L).setEndPositionMs(editState.trimStartMs).build())
+                            .build()
+                    )
+                }
+                if (editState.trimEndMs < durationMs) {
+                    items.add(
+                        androidx.media3.common.MediaItem.Builder().setUri(uri)
+                            .setClippingConfiguration(androidx.media3.common.MediaItem.ClippingConfiguration.Builder().setStartPositionMs(editState.trimEndMs).setEndPositionMs(durationMs).build())
+                            .build()
+                    )
+                }
+            } else {
+                var start = editState.trimStartMs
+                var end = editState.trimEndMs
+                if (end <= 0L) end = durationMs
+                if (end > start) {
+                    items.add(
+                        androidx.media3.common.MediaItem.Builder().setUri(uri)
+                            .setClippingConfiguration(androidx.media3.common.MediaItem.ClippingConfiguration.Builder().setStartPositionMs(start).setEndPositionMs(end).build())
+                            .build()
+                    )
+                }
+            }
+            if (items.isNotEmpty()) {
+                exoPlayer.setMediaItems(items)
+                exoPlayer.repeatMode = androidx.media3.common.Player.REPEAT_MODE_ALL
+                exoPlayer.prepare()
+                exoPlayer.playWhenReady = true
+            }
+        }
+    }
+
+    if (playerError != null && !isConverting) {
+        AlertDialog(
+            onDismissRequest = { playerError = null },
+            title = { Text("Unsupported Format") },
+            text = { Text(playerError!!) },
+            confirmButton = {
+                TextButton(onClick = { repairVideo() }) {
+                    Text("Repair Format")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { playerError = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     if (isConverting) {
@@ -422,8 +564,7 @@ fun VideoEditorScreen(
                     }
                 }
                 
-                val showCropOverlay = (currentTool == VideoEditorTool.CROP && editState.cropRect != "None") || 
-                                      (currentTool == VideoEditorTool.ASPECT_RATIO && editState.aspectRatio != "Original")
+                val showCropOverlay = (currentTool == VideoEditorTool.CROP && editState.cropRect != "None")
                 
                 if (showCropOverlay) {
                     var resizeCorner by remember { mutableIntStateOf(0) }
@@ -440,17 +581,13 @@ fun VideoEditorScreen(
                     
                     if (!isCustom && effectiveVideoHeight > 0) {
                         val videoAspect = effectiveVideoWidth.toFloat() / effectiveVideoHeight.toFloat()
-                        val targetRatio = if (currentTool == VideoEditorTool.CROP && editState.cropRect == "Center Crop") {
-                            1f
-                        } else {
-                            when (editState.aspectRatio) {
-                                "16:9" -> 16f / 9f
-                                "9:16" -> 9f / 16f
-                                "1:1" -> 1f
-                                "4:3" -> 4f / 3f
-                                "21:9" -> 21f / 9f
-                                else -> videoAspect
-                            }
+                        val targetRatio = when (editState.cropRect) {
+                            "16:9" -> 16f / 9f
+                            "9:16" -> 9f / 16f
+                            "1:1" -> 1f
+                            "4:3" -> 4f / 3f
+                            "21:9" -> 21f / 9f
+                            else -> videoAspect
                         }
                         
                         if (videoAspect > targetRatio) {
@@ -593,6 +730,24 @@ fun VideoEditorScreen(
                         }
                     }
                 }
+
+                if (editState.hasCaptions && editState.captionText.isNotBlank()) {
+                    androidx.compose.material3.Text(
+                        text = editState.captionText,
+                        color = androidx.compose.ui.graphics.Color.White,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        style = androidx.compose.material3.MaterialTheme.typography.headlineMedium.copy(
+                            shadow = androidx.compose.ui.graphics.Shadow(
+                                color = androidx.compose.ui.graphics.Color.Black,
+                                offset = androidx.compose.ui.geometry.Offset(2f, 2f),
+                                blurRadius = 8f
+                            )
+                        ),
+                        modifier = androidx.compose.ui.Modifier
+                            .align(androidx.compose.ui.Alignment.BottomCenter)
+                            .padding(bottom = 32.dp)
+                    )
+                }
             }
 
             // Timeline / Progress Bar Area
@@ -605,43 +760,46 @@ fun VideoEditorScreen(
                 var isDragging by remember { mutableStateOf(false) }
 
                 val currentEditState by rememberUpdatedState(editState)
+                val currentToolState by rememberUpdatedState(currentTool)
                 LaunchedEffect(exoPlayer) {
                     while (true) {
                         if (!isDragging) {
                             currentPositionMs = exoPlayer?.currentPosition ?: 0L
-                            if (currentEditState.isDoubleTrim) {
-                                val ds1 = currentEditState.doubleTrimStart1Ms.coerceIn(0L, durationMs)
-                                val de1 = currentEditState.doubleTrimEnd1Ms.coerceIn(ds1, durationMs).takeIf { it > 0 } ?: (durationMs / 2)
-                                val ds2 = currentEditState.doubleTrimStart2Ms.coerceIn(de1, durationMs)
-                                val de2 = currentEditState.doubleTrimEnd2Ms.coerceIn(ds2, durationMs).takeIf { it > 0 } ?: durationMs
-                                
-                                if (currentPositionMs >= de1 && currentPositionMs < ds2) {
-                                    exoPlayer?.seekTo(ds2)
-                                    currentPositionMs = ds2
-                                } else if (currentPositionMs >= de2) {
-                                    exoPlayer?.seekTo(ds1)
-                                    currentPositionMs = ds1
-                                } else if (currentPositionMs < ds1) {
-                                    exoPlayer?.seekTo(ds1)
-                                    currentPositionMs = ds1
-                                }
-                            } else if (!currentEditState.isCutMode) {
-                                val start = currentEditState.trimStartMs.coerceIn(0L, durationMs)
-                                val end = currentEditState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
-                                if (end > 0 && currentPositionMs >= end) {
-                                    exoPlayer?.seekTo(start)
-                                    currentPositionMs = start
-                                } else if (currentPositionMs < start) {
-                                    exoPlayer?.seekTo(start)
-                                    currentPositionMs = start
-                                }
-                            } else {
-                                // In cut mode, we skip the middle
-                                val start = currentEditState.trimStartMs.coerceIn(0L, durationMs)
-                                val end = currentEditState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
-                                if (currentPositionMs >= start && currentPositionMs < end) {
-                                    exoPlayer?.seekTo(end)
-                                    currentPositionMs = end
+                            if (currentToolState == VideoEditorTool.TRIM) {
+                                if (currentEditState.isDoubleTrim) {
+                                    val ds1 = currentEditState.doubleTrimStart1Ms.coerceIn(0L, durationMs)
+                                    val de1 = currentEditState.doubleTrimEnd1Ms.coerceIn(ds1, durationMs).takeIf { it > 0 } ?: (durationMs / 2)
+                                    val ds2 = currentEditState.doubleTrimStart2Ms.coerceIn(de1, durationMs)
+                                    val de2 = currentEditState.doubleTrimEnd2Ms.coerceIn(ds2, durationMs).takeIf { it > 0 } ?: durationMs
+                                    
+                                    if (currentPositionMs >= de1 && currentPositionMs < ds2) {
+                                        exoPlayer?.seekTo(ds2)
+                                        currentPositionMs = ds2
+                                    } else if (currentPositionMs >= de2) {
+                                        exoPlayer?.seekTo(ds1)
+                                        currentPositionMs = ds1
+                                    } else if (currentPositionMs < ds1) {
+                                        exoPlayer?.seekTo(ds1)
+                                        currentPositionMs = ds1
+                                    }
+                                } else if (!currentEditState.isCutMode) {
+                                    val start = currentEditState.trimStartMs.coerceIn(0L, durationMs)
+                                    val end = currentEditState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
+                                    if (end > 0 && currentPositionMs >= end) {
+                                        exoPlayer?.seekTo(start)
+                                        currentPositionMs = start
+                                    } else if (currentPositionMs < start) {
+                                        exoPlayer?.seekTo(start)
+                                        currentPositionMs = start
+                                    }
+                                } else {
+                                    // In cut mode, we skip the middle
+                                    val start = currentEditState.trimStartMs.coerceIn(0L, durationMs)
+                                    val end = currentEditState.trimEndMs.coerceIn(start, durationMs).takeIf { it > 0 } ?: durationMs
+                                    if (currentPositionMs >= start && currentPositionMs < end) {
+                                        exoPlayer?.seekTo(end)
+                                        currentPositionMs = end
+                                    }
                                 }
                             }
                         }
@@ -1031,10 +1189,11 @@ fun VideoEditorScreen(
                                     Text("Crop Video Presets", style = MaterialTheme.typography.titleSmall)
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Row(
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier.fillMaxWidth()
+                                            .horizontalScroll(rememberScrollState()),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        listOf("None", "Center Crop", "Custom").forEach { crop ->
+                                        listOf("None", "16:9", "9:16", "1:1", "4:3", "21:9", "Custom").forEach { crop ->
                                             FilterChip(
                                                 selected = editState.cropRect == crop,
                                                 onClick = { editState = editState.copy(cropRect = crop) },
@@ -1299,18 +1458,39 @@ fun VideoEditorScreen(
                                 val cx = "iw*${editState.cropLeft}"
                                 val cy = "ih*${editState.cropTop}"
                                 filterList.add("crop=$cw:$ch:$cx:$cy")
+                            } else {
+                                val cropFilter = when (editState.cropRect) {
+                                    "16:9" -> "crop=w='min(iw,ih*16/9)':h='min(ih,iw*9/16)'"
+                                    "9:16" -> "crop=w='min(iw,ih*9/16)':h='min(ih,iw*16/9)'"
+                                    "1:1" -> "crop=w='min(iw,ih)':h='min(ih,iw)'"
+                                    "4:3" -> "crop=w='min(iw,ih*4/3)':h='min(ih,iw*3/4)'"
+                                    "21:9" -> "crop=w='min(iw,ih*21/9)':h='min(ih,iw*9/21)'"
+                                    else -> ""
+                                }
+                                if (cropFilter.isNotEmpty()) filterList.add(cropFilter)
                             }
                         }
                         if (editState.aspectRatio != "Original") {
-                            val cropFilter = when (editState.aspectRatio) {
-                                "16:9" -> "crop=w='min(iw,ih*16/9)':h='min(ih,iw*9/16)'"
-                                "9:16" -> "crop=w='min(iw,ih*9/16)':h='min(ih,iw*16/9)'"
-                                "1:1" -> "crop=w='min(iw,ih)':h='min(ih,iw)'"
-                                "4:3" -> "crop=w='min(iw,ih*4/3)':h='min(ih,iw*3/4)'"
-                                "21:9" -> "crop=w='min(iw,ih*21/9)':h='min(ih,iw*9/21)'"
+                            val scaleFilter = when (editState.aspectRatio) {
+                                "16:9" -> "scale=w=max(iw\\,ih*16/9):h=max(ih\\,iw*9/16):force_original_aspect_ratio=increase,crop=w='min(iw,ih*16/9)':h='min(ih,iw*9/16)'"
+                                "9:16" -> "scale=w=max(iw\\,ih*9/16):h=max(ih\\,iw*16/9):force_original_aspect_ratio=increase,crop=w='min(iw,ih*9/16)':h='min(ih,iw*16/9)'"
+                                "1:1" -> "scale=w=max(iw\\,ih):h=max(ih\\,iw):force_original_aspect_ratio=increase,crop=w='min(iw,ih)':h='min(ih,iw)'"
+                                "4:3" -> "scale=w=max(iw\\,ih*4/3):h=max(ih\\,iw*3/4):force_original_aspect_ratio=increase,crop=w='min(iw,ih*4/3)':h='min(ih,iw*3/4)'"
+                                "21:9" -> "scale=w=max(iw\\,ih*21/9):h=max(ih\\,iw*9/21):force_original_aspect_ratio=increase,crop=w='min(iw,ih*21/9)':h='min(ih,iw*9/21)'"
                                 else -> ""
                             }
-                            if (cropFilter.isNotEmpty()) filterList.add(cropFilter)
+                            // Actually, if we just want to stretch/squeeze, we can use setdar or scale. 
+                            // `scale=w=xxx:h=yyy` forces stretch without crop. But we need a specific output ratio.
+                            // Let's do `scale=iw:iw*9/16` for 16:9? No, it should just be setdar=16/9 or scale with setsar
+                            val stretchFilter = when (editState.aspectRatio) {
+                                "16:9" -> "scale=w=max(iw\\,ih*16/9):h=max(ih\\,iw*9/16),setsar=1"
+                                "9:16" -> "scale=w=max(iw\\,ih*9/16):h=max(ih\\,iw*16/9),setsar=1"
+                                "1:1" -> "scale=w=max(iw\\,ih):h=max(iw\\,ih),setsar=1"
+                                "4:3" -> "scale=w=max(iw\\,ih*4/3):h=max(ih\\,iw*3/4),setsar=1"
+                                "21:9" -> "scale=w=max(iw\\,ih*21/9):h=max(ih\\,iw*9/21),setsar=1"
+                                else -> ""
+                            }
+                            if (stretchFilter.isNotEmpty()) filterList.add(stretchFilter)
                         }
                         if (editState.hasCaptions && editState.captionText.isNotBlank()) {
                             val safeText = editState.captionText.replace("'", "")
@@ -1336,6 +1516,11 @@ fun VideoEditorScreen(
                                     editState.aspectRatio == "4:3" -> false
                                     editState.aspectRatio == "21:9" -> false
                                     editState.aspectRatio == "1:1" -> false
+                                    editState.cropRect == "9:16" -> true
+                                    editState.cropRect == "16:9" -> false
+                                    editState.cropRect == "4:3" -> false
+                                    editState.cropRect == "21:9" -> false
+                                    editState.cropRect == "1:1" -> false
                                     editState.cropRect == "Custom" -> {
                                         val cw = rotatedW * (editState.cropRight - editState.cropLeft)
                                         val ch = rotatedH * (editState.cropBottom - editState.cropTop)

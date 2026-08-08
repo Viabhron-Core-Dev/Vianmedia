@@ -192,7 +192,7 @@ intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
 startActivity(intent)
 } else {
 if (composeView == null) {
-showOverlay()
+showOverlay(false)
 } else {
 hideOverlay()
 }
@@ -200,9 +200,13 @@ hideOverlay()
 return Futures.immediateFuture(androidx.media3.session.SessionResult(androidx.media3.session.SessionResult.RESULT_SUCCESS))
 }
 if (customCommand.customAction == "ACTION_PIP") {
-// Broadcast to MainActivity to enter PiP
-val intent = android.content.Intent("com.example.ACTION_ENTER_PIP")
-sendBroadcast(intent)
+if (!android.provider.Settings.canDrawOverlays(this@PlaybackService)) {
+val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:$packageName"))
+intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+startActivity(intent)
+} else {
+showOverlay(true)
+}
 return Futures.immediateFuture(androidx.media3.session.SessionResult(androidx.media3.session.SessionResult.RESULT_SUCCESS))
 }
 
@@ -283,7 +287,7 @@ stopSelf()
 
 
 @SuppressLint("ClickableViewAccessibility")
-private fun showOverlay() {
+private fun showOverlay(startInVideoMode: Boolean = false) {
 if (composeView != null) return
 val cv = ComposeView(this)
 composeView = cv
@@ -295,8 +299,48 @@ val prefs = getSharedPreferences("MiniPlayerPrefs", android.content.Context.MODE
 
 cv.setContent {
 var isMinimized by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+var isVideoMode by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(startInVideoMode) }
 
 com.example.ui.theme.MyApplicationTheme {
+if (isVideoMode) {
+com.example.ui.components.FloatingVideoPlayerOverlay(
+player = com.example.service.PlayerManager.exoPlayer,
+onClose = {
+val player = com.example.service.PlayerManager.exoPlayer
+player?.stop()
+player?.clearMediaItems()
+hideOverlay()
+stopSelf()
+},
+onMinimize = { hideOverlay() },
+onDrag = { dx, dy ->
+val lp = layoutParams
+if (lp != null) {
+lp.x += dx.toInt()
+lp.y += dy.toInt()
+windowManager.updateViewLayout(cv, lp)
+prefs.edit().putInt("x", lp.x).putInt("y", lp.y).apply()
+}
+},
+onResize = { dw, dh ->
+val lp = layoutParams
+if (lp != null) {
+lp.width = (lp.width + dw.toInt()).coerceAtLeast(400)
+lp.height = (lp.height + dh.toInt()).coerceAtLeast(400)
+windowManager.updateViewLayout(cv, lp)
+prefs.edit().putInt("width", lp.width).putInt("height", lp.height).apply()
+}
+},
+onOpenMainPlayer = {
+val intent = android.content.Intent(this@PlaybackService, com.example.MainActivity::class.java).apply {
+flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+}
+startActivity(intent)
+hideOverlay()
+},
+onSwitchToMiniPlayer = { isVideoMode = false }
+)
+} else {
 com.example.ui.components.MiniPlayerOverlay(
 player = com.example.service.PlayerManager.exoPlayer,
 onClose = {
@@ -342,8 +386,10 @@ lp.height = prefs.getInt("height", (200 * metrics.density).toInt())
 }
 windowManager.updateViewLayout(cv, lp)
 }
-}
+},
+onSwitchToVideo = { isVideoMode = true }
 )
+}
 }
 }
 val type = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -454,7 +500,8 @@ composeView = null
             }
             val player = PlayerManager.exoPlayer ?: return
             when (intent.getStringExtra("command")) {
-                "ACTION_MINIPLAYER", "ACTION_OVERLAY" -> showOverlay()
+                "ACTION_MINIPLAYER", "ACTION_OVERLAY" -> showOverlay(false)
+                "ACTION_VIDEO_OVERLAY" -> showOverlay(true)
                 "ACTION_CLOSE" -> {
                     player.stop()
                     player.clearMediaItems()

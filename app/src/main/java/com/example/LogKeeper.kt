@@ -71,7 +71,9 @@ object LogKeeper {
         if (!_isEnabled.value) return
         val entry = LogEntry(System.currentTimeMillis(), false, tag, message)
         Log.d(TAG, entry.formattedString)
-        _logs.value = _logs.value + entry
+        val currentList = _logs.value
+        val newList = if (currentList.size > 500) currentList.drop(1) + entry else currentList + entry
+        _logs.value = newList
     }
 
     fun logError(tag: String, message: String, throwable: Throwable? = null) {
@@ -79,7 +81,9 @@ object LogKeeper {
         val stackTrace = throwable?.let { Log.getStackTraceString(it) }
         val entry = LogEntry(System.currentTimeMillis(), true, tag, message, stackTrace)
         Log.e(TAG, entry.formattedString)
-        _logs.value = _logs.value + entry
+        val currentList = _logs.value
+        val newList = if (currentList.size > 500) currentList.drop(1) + entry else currentList + entry
+        _logs.value = newList
     }
 
     private fun dumpCrash(context: Context, throwable: Throwable) {
