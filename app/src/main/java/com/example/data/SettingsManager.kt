@@ -21,6 +21,9 @@ class SettingsManager private constructor(context: Context) {
     private val _showLoggerFab = MutableStateFlow(true)
     val showLoggerFab: StateFlow<Boolean> = _showLoggerFab.asStateFlow()
 
+    private val _keepScreenAwake = MutableStateFlow(true)
+    val keepScreenAwake: StateFlow<Boolean> = _keepScreenAwake.asStateFlow()
+
     init {
         val excludedStrSet = prefs.getStringSet("excluded_folders", emptySet())
         if (!excludedStrSet.isNullOrEmpty()) {
@@ -30,6 +33,7 @@ class SettingsManager private constructor(context: Context) {
         _outputFolderUri.value = prefs.getString("output_folder_uri", null)
         
         _showLoggerFab.value = prefs.getBoolean("show_logger_fab", true)
+        _keepScreenAwake.value = prefs.getBoolean("keep_screen_awake", true)
 
         val defaultExts = setOf("mp4", "mkv", "mp3", "webm", "3gp", "avi", "mov", "flv", "wmv", "m4v", "aac", "wav", "flac")
         val savedExts = prefs.getStringSet("extensions", null)
@@ -78,6 +82,12 @@ class SettingsManager private constructor(context: Context) {
         _showLoggerFab.value = show
         prefs.edit().putBoolean("show_logger_fab", show).apply()
     }
+
+    fun setKeepScreenAwake(keep: Boolean) {
+        _keepScreenAwake.value = keep
+        prefs.edit().putBoolean("keep_screen_awake", keep).apply()
+    }
+
 
     fun savePlaybackState(uri: String, position: Long, duration: Long) {
         prefs.edit()

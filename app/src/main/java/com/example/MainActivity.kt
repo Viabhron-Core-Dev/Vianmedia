@@ -139,9 +139,24 @@ class MainActivity : ComponentActivity() {
                       initialUris = listOf(currentMediaId)
                   }
               } else if (currentIntent?.action == android.content.Intent.ACTION_VIEW || currentIntent?.action == "edit") {
+                val uris = mutableListOf<String>()
                 currentIntent?.data?.let { uri ->
-                  initialUris = listOf(uri.toString())
+                  uris.add(uri.toString())
                 }
+                if (uris.isEmpty()) {
+                  (currentIntent?.getParcelableExtra<android.os.Parcelable>(android.content.Intent.EXTRA_STREAM) as? android.net.Uri)?.let { uri ->
+                    uris.add(uri.toString())
+                  }
+                }
+                if (uris.isEmpty()) {
+                    val clipData = currentIntent?.clipData
+                    if (clipData != null && clipData.itemCount > 0) {
+                        clipData.getItemAt(0)?.uri?.let { uri ->
+                            uris.add(uri.toString())
+                        }
+                    }
+                }
+                initialUris = uris
               } else if (currentIntent?.action == android.content.Intent.ACTION_SEND) {
                 (currentIntent?.getParcelableExtra<android.os.Parcelable>(android.content.Intent.EXTRA_STREAM) as? android.net.Uri)?.let { uri ->
                   initialUris = listOf(uri.toString())

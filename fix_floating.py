@@ -1,57 +1,57 @@
-with open("app/src/main/java/com/example/ui/components/MiniPlayerOverlay.kt", "r") as f:
+import sys
+
+with open('app/src/main/java/com/example/ui/components/FloatingVideoPlayerOverlay.kt', 'r') as f:
     content = f.read()
 
-target = """    if (isMinimizedExternal) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(androidx.compose.foundation.shape.CircleShape)
-                .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), androidx.compose.foundation.shape.CircleShape)
-                .pointerInput(Unit) {
-                    detectDragGesturesAfterLongPress(
-                        onDrag = { change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: androidx.compose.ui.geometry.Offset ->
-                            change.consume()
-                            onDrag(dragAmount.x, dragAmount.y)
+target1 = """    var title by remember { mutableStateOf(player?.currentMediaItem?.mediaMetadata?.title?.toString() ?: "Unknown") }
+    var isPlaying by remember { mutableStateOf(player?.isPlaying == true) }"""
+
+replacement1 = """    var title by remember { mutableStateOf(player?.currentMediaItem?.mediaMetadata?.title?.toString() ?: "Unknown") }
+    var isPlaying by remember { mutableStateOf(player?.isPlaying == true) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settingsManager = remember { com.example.data.SettingsManager.getInstance(context) }
+    val keepScreenAwake by settingsManager.keepScreenAwake.androidx.compose.runtime.collectAsState()"""
+
+if target1 in content:
+    content = content.replace(target1, replacement1)
+    print("Success 1")
+
+target2 = """                if (player != null) {
+                    AndroidView(
+                        factory = { ctx ->
+                            PlayerView(ctx).apply {
+                                this.player = player
+                                useController = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize().pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { showControls = !showControls }
+                            )
                         }
-                    )
-                }
-                .clickable { onMinimizeChange(false) },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_play_launcher_foreground), contentDescription = "Unfold", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
-        }
-        return
-    }"""
+                    )"""
 
-replacement = """    if (isMinimizedExternal) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(androidx.compose.foundation.shape.CircleShape)
-                .background(androidx.compose.ui.graphics.Color(0xFF2196F3))
-                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), androidx.compose.foundation.shape.CircleShape)
-                .pointerInput(Unit) {
-                    detectDragGesturesAfterLongPress(
-                        onDrag = { change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: androidx.compose.ui.geometry.Offset ->
-                            change.consume()
-                            onDrag(dragAmount.x, dragAmount.y)
+replacement2 = """                if (player != null) {
+                    AndroidView(
+                        factory = { ctx ->
+                            PlayerView(ctx).apply {
+                                this.player = player
+                                useController = false
+                            }
+                        },
+                        update = { view ->
+                            view.keepScreenOn = keepScreenAwake && isPlaying
+                        },
+                        modifier = Modifier.fillMaxSize().pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { showControls = !showControls }
+                            )
                         }
-                    )
-                }
-                .clickable { onMinimizeChange(false) },
-            contentAlignment = Alignment.Center
-        ) {
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_launcher_foreground),
-                contentDescription = "Unfold",
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-        return
-    }"""
+                    )"""
 
-content = content.replace(target, replacement)
+if target2 in content:
+    content = content.replace(target2, replacement2)
+    print("Success 2")
 
-with open("app/src/main/java/com/example/ui/components/MiniPlayerOverlay.kt", "w") as f:
+with open('app/src/main/java/com/example/ui/components/FloatingVideoPlayerOverlay.kt', 'w') as f:
     f.write(content)

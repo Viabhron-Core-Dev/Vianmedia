@@ -21,6 +21,7 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     private var playlist = listOf<MediaItem>()
     private var currentIndex = -1
     private var folders = listOf<MediaFolder>()
+    private var dbPlaylists = listOf<com.example.data.Playlist>()
     private var folderItems = listOf<com.example.data.MediaItem>()
     
     private var currentMode = "root"
@@ -71,6 +72,29 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                         currentMode = "folders"
                     }
                 }
+            } else if (currentMode == "playlists" || currentMode == "playlist_items") {
+                runBlocking {
+                    val dao = com.example.data.AppDatabase.getDatabase(context).playlistDao()
+                    dbPlaylists = dao.getAllPlaylistsSync()
+                    if (folderId != null) {
+                        val allItems = dao.getAllPlaylistItemsSync()
+                        val items = allItems.filter { it.playlistId == folderId!!.toInt() }.sortedBy { it.timestamp }
+                        val allFolders = MediaRepository(context).getMediaFolders()
+                        val allMediaItems = allFolders.flatMap { it.mediaItems }
+                        
+                        val matchedItems = mutableListOf<com.example.data.MediaItem>()
+                        for (item in items) {
+                            val mediaItem = allMediaItems.find { it.uri.toString() == item.mediaUri }
+                            if (mediaItem != null) {
+                                matchedItems.add(mediaItem)
+                            }
+                        }
+                        folderItems = matchedItems
+                        currentMode = "playlist_items"
+                    } else {
+                        currentMode = "playlists"
+                    }
+                }
             }
         } catch (e: Exception) {
             com.example.LogKeeper.logError("MediaWidgetFactory", "Error in onDataSetChanged", e)
@@ -83,8 +107,9 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         return when (currentMode) {
             "root" -> 3
             "current" -> playlist.size
-            "folders", "playlists" -> 1
-            "folder_items", "search_results" -> folderItems.size
+            "folders" -> folders.size
+            "playlists" -> dbPlaylists.size
+            "folder_items", "playlist_items", "search_results" -> folderItems.size
             else -> 0
         }
     }
@@ -129,13 +154,23 @@ class MediaWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                     
                     views.setOnClickFillInIntent(R.id.widget_item_root, Intent().putExtra("EXTRA_INDEX", position).putExtra("WIDGET_ACTION", "PLAYLIST_ITEM"))
                 }
-                "folders", "playlists" -> {
-                    views.setViewVisibility(R.id.widget_item_icon, android.view.View.GONE)
-                    views.setTextViewText(R.id.widget_item_title, "Feature coming soon")
+                "folders" -> {
+                    views.setViewVisibility(R.id.widget_item_icon, android.view.View.VISIBLE)
+                    views.setImageViewResource(R.id.widget_item_icon, R.drawable.ic_widget_folder)
+                    val folder = folders[position]
+                    views.setTextViewText(R.id.widget_item_title, folder.name)
                     views.setInt(R.id.widget_item_root, "setBackgroundColor", android.graphics.Color.TRANSPARENT)
-                    views.setOnClickFillInIntent(R.id.widget_item_root, Intent())
+                    views.setOnClickFillInIntent(R.id.widget_item_root, Intent().putExtra("WIDGET_ACTION", "OPEN_FOLDER").putExtra("EXTRA_FOLDER_ID", folder.id))
                 }
-                "folder_items", "search_results" -> {
+                "playlists" -> {
+                    views.setViewVisibility(R.id.widget_item_icon, android.view.View.VISIBLE)
+                    views.setImageViewResource(R.id.widget_item_icon, R.drawable.ic_widget_playlist)
+                    val p = dbPlaylists[position]
+                    views.setTextViewText(R.id.widget_item_title, p.name)
+                    views.setInt(R.id.widget_item_root, "setBackgroundColor", android.graphics.Color.TRANSPARENT)
+                    views.setOnClickFillInIntent(R.id.widget_item_root, Intent().putExtra("WIDGET_ACTION", "OPEN_PLAYLIST").putExtra("EXTRA_FOLDER_ID", p.id.toString()))
+                }
+                "folder_items", "playlist_items", "search_results" -> {
                     views.setViewVisibility(R.id.widget_item_icon, android.view.View.GONE)
                     val file = folderItems[position]
                     views.setTextViewText(R.id.widget_item_title, file.name)

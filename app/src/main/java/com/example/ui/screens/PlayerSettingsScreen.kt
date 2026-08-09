@@ -21,6 +21,7 @@ fun PlayerSettingsScreen(
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager.getInstance(context) }
     var defaultAudioBackgroundPlay by remember { mutableStateOf(settingsManager.defaultAudioBackgroundPlay) }
+    val keepScreenAwake by settingsManager.keepScreenAwake.collectAsState()
     
     Scaffold(
         topBar = {
@@ -87,6 +88,29 @@ fun PlayerSettingsScreen(
                     onCheckedChange = { 
                         defaultAudioBackgroundPlay = it
                         settingsManager.defaultAudioBackgroundPlay = it
+                    }
+                )
+            }
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Keep Screen Awake",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = "Keep screen on while video is playing",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = keepScreenAwake,
+                    onCheckedChange = { 
+                        settingsManager.setKeepScreenAwake(it)
                     }
                 )
             }

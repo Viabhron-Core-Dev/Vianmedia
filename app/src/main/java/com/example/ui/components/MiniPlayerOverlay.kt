@@ -1,5 +1,6 @@
 package com.example.ui.components
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,6 +48,22 @@ fun MiniPlayerOverlay(
 
     var loopMode by remember { mutableIntStateOf(player?.repeatMode ?: Player.REPEAT_MODE_OFF) }
     var shuffleMode by remember { mutableStateOf(player?.shuffleModeEnabled == true) }
+    
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val mediaRepo = remember { com.example.data.MediaRepository(context.applicationContext as android.app.Application) }
+    var folders by remember { mutableStateOf<List<com.example.data.MediaFolder>>(emptyList()) }
+    val playlistDao = remember { com.example.data.AppDatabase.getDatabase(context).playlistDao() }
+    var playlistsList by remember { mutableStateOf<List<com.example.data.Playlist>>(emptyList()) }
+    val coroutineScope = rememberCoroutineScope()
+    
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            folders = mediaRepo.getMediaFolders()
+            playlistDao.getAllPlaylists().collect {
+                playlistsList = it
+            }
+        }
+    }
 
     LaunchedEffect(player) {
         if (player == null) return@LaunchedEffect
@@ -109,11 +126,11 @@ fun MiniPlayerOverlay(
                 .clickable { onMinimizeChange(false) },
             contentAlignment = Alignment.Center
         ) {
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_launcher_foreground),
+            Icon(
+                painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_pip),
                 contentDescription = "Unfold",
-                modifier = Modifier.fillMaxSize(1.6f),
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                modifier = Modifier.fillMaxSize(0.6f),
+                tint = MaterialTheme.colorScheme.onPrimary
             )
         }
         return
@@ -158,30 +175,7 @@ fun MiniPlayerOverlay(
                     IconButton(onClick = onSwitchToVideo) {
                         Icon(Icons.Filled.VideoLibrary, contentDescription = "Switch to Video", tint = MaterialTheme.colorScheme.primary)
                     }
-                    IconButton(onClick = {
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                            val activity = context as? android.app.Activity ?: (context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity
-                            var entered = false
-                            try {
-                                if (activity != null) {
-                                    entered = activity.enterPictureInPictureMode(android.app.PictureInPictureParams.Builder().build())
-                                }
-                            } catch (e: Exception) { }
-                            
-                            if (!entered) {
-                                try {
-                                    val intent = android.content.Intent("android.settings.PICTURE_IN_PICTURE_SETTINGS").apply {
-                                        data = android.net.Uri.fromParts("package", context.packageName, null)
-                                    }
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    android.widget.Toast.makeText(context, "PiP not available", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        }
-                    }, modifier = Modifier.size(32.dp)) {
-                        Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_pip), contentDescription = "PIP", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
-                    }
+
                     IconButton(onClick = {
                         val intent = android.content.Intent(context, com.example.MainActivity::class.java).apply {
                             action = "com.example.ACTION_OPEN_PLAYER"
@@ -384,10 +378,95 @@ fun MiniPlayerOverlay(
                                 )
                             }
                         }
-                    } else {
-                        item {
-                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                Text("Feature coming soon", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else if (explorerMode == "folders") {
+                        items(folders) { folder ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                            val items = folder.mediaItems
+                                            val mediaItems = items.map { item ->
+                                                val meta = androidx.media3.common.MediaMetadata.Builder()
+                                                    .setTitle(item.name)
+                                                    .setDisplayTitle(item.name)
+                                                    .setArtworkUri(item.uri)
+                                                    .build()
+                                                androidx.media3.common.MediaItem.Builder()
+                                                    .setUri(item.uri.toString())
+                                                    .setMediaId(item.uri.toString())
+                                                    .setMediaMetadata(meta)
+                                                    .build()
+                                            }
+                                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                com.example.service.PlayerManager.exoPlayer?.let { player ->
+                                                    player.setMediaItems(mediaItems, 0, 0)
+                                                    player.prepare()
+                                                    player.play()
+                                                }
+                                                explorerMode = "current"
+                                            }
+                                        }
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Filled.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(end = 16.dp))
+                                Column {
+                                    Text(
+                                        text = folder.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "${folder.mediaItems.size} items",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    } else if (explorerMode == "playlists") {
+                        items(playlistsList) { playlistItem ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                            val dbItems = playlistDao.getItemsForPlaylist(playlistItem.id).first()
+                                            val mediaItems = dbItems.map { item ->
+                                                val meta = androidx.media3.common.MediaMetadata.Builder()
+                                                    .setTitle(android.net.Uri.parse(item.mediaUri).lastPathSegment ?: "Unknown")
+                                                    .setDisplayTitle(android.net.Uri.parse(item.mediaUri).lastPathSegment ?: "Unknown")
+                                                    .setArtworkUri(android.net.Uri.parse(item.mediaUri))
+                                                    .build()
+                                                androidx.media3.common.MediaItem.Builder()
+                                                    .setUri(item.mediaUri)
+                                                    .setMediaId(item.mediaUri)
+                                                    .setMediaMetadata(meta)
+                                                    .build()
+                                            }
+                                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                if (mediaItems.isNotEmpty()) {
+                                                    com.example.service.PlayerManager.exoPlayer?.let { player ->
+                                                        player.setMediaItems(mediaItems, 0, 0)
+                                                        player.prepare()
+                                                        player.play()
+                                                    }
+                                                    explorerMode = "current"
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Filled.PlaylistPlay, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(end = 16.dp))
+                                Text(
+                                    text = playlistItem.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
                             }
                         }
                     }

@@ -39,6 +39,9 @@ fun FloatingVideoPlayerOverlay(
 ) {
     var title by remember { mutableStateOf(player?.currentMediaItem?.mediaMetadata?.title?.toString() ?: "Unknown") }
     var isPlaying by remember { mutableStateOf(player?.isPlaying == true) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settingsManager = remember { com.example.data.SettingsManager.getInstance(context) }
+    val keepScreenAwake by settingsManager.keepScreenAwake.collectAsState()
 
     DisposableEffect(player) {
         if (player == null) return@DisposableEffect onDispose {}
@@ -95,9 +98,6 @@ fun FloatingVideoPlayerOverlay(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(onClick = onSwitchToMiniPlayer, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Filled.MusicNote, contentDescription = "Switch to Mini Player", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
-                }
             }
 
             // Video Player
@@ -108,20 +108,122 @@ fun FloatingVideoPlayerOverlay(
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
+                var showControls by remember { mutableStateOf(false) }
                 if (player != null) {
                     AndroidView(
                         factory = { ctx ->
                             PlayerView(ctx).apply {
                                 this.player = player
-                                useController = true
-                                setShowNextButton(true)
-                                setShowPreviousButton(true)
-                                setShowFastForwardButton(true)
-                                setShowRewindButton(true)
+                                useController = false
                             }
                         },
-                        modifier = Modifier.fillMaxSize()
+                        update = { view ->
+                            view.keepScreenOn = keepScreenAwake && isPlaying
+                        },
+                        modifier = Modifier.fillMaxSize().pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { showControls = !showControls }
+                            )
+                        }
                     )
+                    
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showControls,
+                        enter = androidx.compose.animation.fadeIn(),
+                        exit = androidx.compose.animation.fadeOut(),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .padding(bottom = 40.dp)
+                            ) {
+                                com.example.ui.screens.PlaybackProgressRow(
+                                    mediaController = player,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                                )
+                                
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    // Center alignment
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                                        modifier = Modifier.align(Alignment.Center)
+                                    ) {
+                                        IconButton(
+                                            onClick = { 
+                                                player?.let { controller ->
+                                                    if (controller.hasPreviousMediaItem()) {
+                                                        controller.seekToPreviousMediaItem()
+                                                    } else {
+                                                        controller.seekTo(0)
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.size(56.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.SkipPrevious,
+                                                contentDescription = "Previous",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(36.dp)
+                                            )
+                                        }
+
+                                        IconButton(
+                                            onClick = { 
+                                                player?.let { controller ->
+                                                    if (controller.playbackState == androidx.media3.common.Player.STATE_ENDED || controller.playbackState == androidx.media3.common.Player.STATE_IDLE) {
+                                                        controller.seekTo(0)
+                                                        controller.prepare()
+                                                        controller.play()
+                                                    } else if (controller.isPlaying) {
+                                                        controller.pause()
+                                                    } else {
+                                                        controller.play()
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.size(56.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                                contentDescription = "Play/Pause",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(36.dp)
+                                            )
+                                        }
+                                        
+                                        IconButton(
+                                            onClick = { 
+                                                player?.let { controller ->
+                                                    if (controller.hasNextMediaItem()) {
+                                                        controller.seekToNextMediaItem()
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.size(56.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.SkipNext,
+                                                contentDescription = "Next",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(36.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

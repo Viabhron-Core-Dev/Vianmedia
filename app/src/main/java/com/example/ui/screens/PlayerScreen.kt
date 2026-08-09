@@ -117,6 +117,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -286,6 +287,7 @@ fun PlayerScreen(
     val backgroundPlayEnabledRef = androidx.compose.runtime.rememberUpdatedState(backgroundPlayEnabled)
     val forceBackgroundPlay = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
     val settingsManager = com.example.data.SettingsManager.getInstance(context)
+    val keepScreenAwake by settingsManager.keepScreenAwake.collectAsState()
     val decodedUriStringForInit = remember(uriString) { String(android.util.Base64.decode(uriString, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)) }
     var playbackSpeed by remember { mutableFloatStateOf(settingsManager.getPlaybackSpeed(decodedUriStringForInit)) }
     var skipSilence by remember { mutableStateOf(false) }
@@ -953,6 +955,7 @@ fun PlayerScreen(
             update = { view ->
                 view.player = mediaController
                 view.resizeMode = resizeMode
+                view.keepScreenOn = keepScreenAwake && isPlaying
                 view.subtitleView?.let { subtitleView ->
                     val colorInt = android.graphics.Color.argb(
                         (subtitleColor.alpha * 255).toInt(),
@@ -1584,23 +1587,6 @@ fun PlayerScreen(
                                 IconButton(modifier = Modifier.size(36.dp), onClick = {
                                     if (android.provider.Settings.canDrawOverlays(context)) {
                                         val overlayIntent = android.content.Intent("com.example.ACTION_WIDGET_COMMAND")
-                                        overlayIntent.putExtra("command", "ACTION_OVERLAY")
-                                        overlayIntent.setPackage(context.packageName)
-                                        context.sendBroadcast(overlayIntent)
-                                        forceBackgroundPlay.set(true)
-                                        backgroundPlayEnabled = true
-                                        onNavigateBack()
-                                    } else {
-                                        val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
-                                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        context.startActivity(intent)
-                                    }
-                                }) {
-                                    Icon(androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_playlist), contentDescription = "Minimize to Mini Player", tint = Color.White, modifier = Modifier.size(20.dp))
-                                }
-                                IconButton(modifier = Modifier.size(36.dp), onClick = {
-                                    if (android.provider.Settings.canDrawOverlays(context)) {
-                                        val overlayIntent = android.content.Intent("com.example.ACTION_WIDGET_COMMAND")
                                         overlayIntent.putExtra("command", "ACTION_VIDEO_OVERLAY")
                                         overlayIntent.setPackage(context.packageName)
                                         context.sendBroadcast(overlayIntent)
@@ -1613,7 +1599,7 @@ fun PlayerScreen(
                                         context.startActivity(intent)
                                     }
                                 }) {
-                                    Icon(modifier = Modifier.size(20.dp), imageVector = Icons.Filled.PictureInPictureAlt, contentDescription = "PiP", tint = Color.White)
+                                    Icon(modifier = Modifier.size(20.dp), painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_pip), contentDescription = "PiP", tint = Color.White)
                                 }
                             }
                             

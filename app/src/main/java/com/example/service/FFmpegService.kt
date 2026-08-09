@@ -134,6 +134,18 @@ class FFmpegService : Service() {
                 kotlinx.coroutines.withContext(Dispatchers.IO) {
                     try {
                         val bytes = actualInputFile.readBytes()
+                        try {
+                            val clazz = Class.forName("com.facebook.soloader.nativeloader.NativeLoader")
+                            val isInitializedMethod = clazz.getMethod("isInitialized")
+                            val isInit = isInitializedMethod.invoke(null) as Boolean
+                            if (!isInit) {
+                                val delegateClazz = Class.forName("com.facebook.soloader.nativeloader.SystemDelegate")
+                                val delegate = delegateClazz.newInstance()
+                                val delegateInterface = Class.forName("com.facebook.soloader.nativeloader.NativeLoaderDelegate")
+                                val initMethod = clazz.getMethod("init", delegateInterface)
+                                initMethod.invoke(null, delegate)
+                            }
+                        } catch (e: Exception) {}
                         val webpImage = com.facebook.animated.webp.WebPImage.createFromByteArray(bytes, com.facebook.imagepipeline.common.ImageDecodeOptions.defaults())
                         frameCount = webpImage.frameCount
                         val durations = webpImage.frameDurations

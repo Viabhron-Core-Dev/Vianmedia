@@ -176,14 +176,7 @@
             android:src="@drawable/ic_widget_search"
             android:background="@drawable/widget_btn_bg"
             android:scaleType="centerInside" />
-        <ImageView
-            android:id="@+id/widget_btn_miniplayer"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginStart="8dp"
-            android:src="@drawable/ic_widget_miniplayer"
-            android:background="@drawable/widget_btn_bg"
-            android:scaleType="centerInside" />
+
         <ImageView
             android:id="@+id/widget_btn_close"
             android:layout_width="28dp"

@@ -67,7 +67,7 @@ class MediaWidgetProvider : AppWidgetProvider() {
         
         // Bottom right intents
         views.setOnClickPendingIntent(R.id.widget_btn_close, getPendingIntent(context, "ACTION_CLOSE"))
-        views.setOnClickPendingIntent(R.id.widget_btn_miniplayer, getPendingIntent(context, "ACTION_MINIPLAYER"))
+
         
         views.setOnClickPendingIntent(R.id.widget_btn_back, getPendingIntent(context, "ACTION_BACK_FOLDER"))
         
@@ -290,11 +290,6 @@ class MediaWidgetProvider : AppWidgetProvider() {
                         controller.stop()
                         controller.clearMediaItems()
                         // send broadcast to close service
-                        val serviceIntent = Intent("com.example.ACTION_WIDGET_COMMAND")
-                        serviceIntent.setPackage(context.packageName)
-                        serviceIntent.putExtra("command", action)
-                        context.sendBroadcast(serviceIntent)
-                    } else if (action == "ACTION_MINIPLAYER") {
                         val serviceIntent = Intent("com.example.ACTION_WIDGET_COMMAND")
                         serviceIntent.setPackage(context.packageName)
                         serviceIntent.putExtra("command", action)
