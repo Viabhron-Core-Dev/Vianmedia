@@ -198,7 +198,7 @@ class FFmpegService : Service() {
                 }
                 if (frameCount > 0) {
                     val preConvertedFile = java.io.File(cacheDir, "preconverted_${System.currentTimeMillis()}.mp4")
-                    val preCmd = "-y -framerate $calculatedFps -i '${framesDir.absolutePath}/frame_%04d.png' -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" -vcodec libx264 -crf 23 -preset ultrafast -pix_fmt yuv420p '${preConvertedFile.absolutePath}'"
+                    val preCmd = "-y -framerate $calculatedFps -i '${framesDir.absolutePath}/frame_%04d.png' -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" -vcodec libx264 -crf 23 -preset ultrafast -pix_fmt yuv420p -metadata:s:v:0 rotate=0 '${preConvertedFile.absolutePath}'"
                     val session = FFmpegKit.execute(preCmd)
                     if (ReturnCode.isSuccess(session.returnCode) && preConvertedFile.exists()) {
                         actualInputFile = preConvertedFile
@@ -207,7 +207,7 @@ class FFmpegService : Service() {
                 }
             } else if (inputMimeType == "image/gif") {
                 val preConvertedFile = java.io.File(cacheDir, "preconverted_${System.currentTimeMillis()}.mp4")
-                val preCmd = "-y -i '${actualInputFile.absolutePath}' -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" -vcodec libx264 -crf 23 -preset ultrafast -pix_fmt yuv420p '${preConvertedFile.absolutePath}'"
+                val preCmd = "-y -i '${actualInputFile.absolutePath}' -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" -vcodec libx264 -crf 23 -preset ultrafast -pix_fmt yuv420p -metadata:s:v:0 rotate=0 '${preConvertedFile.absolutePath}'"
                 val session = FFmpegKit.execute(preCmd)
                 if (ReturnCode.isSuccess(session.returnCode) && preConvertedFile.exists()) {
                     actualInputFile = preConvertedFile

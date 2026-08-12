@@ -224,6 +224,8 @@ fun PlayerScreen(
     var detailsPath by remember { mutableStateOf("Unknown") }
     var isLocked by remember { mutableStateOf(false) }
     var resizeMode by remember { androidx.compose.runtime.mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
+    var videoWidth by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    var videoHeight by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var showBrightnessSlider by remember { mutableStateOf(false) }
     var brightnessInteractionTime by remember { mutableLongStateOf(0L) }
     var currentBrightness by remember { mutableFloatStateOf(context.findActivity()?.window?.attributes?.screenBrightness.takeIf { it != -1f } ?: 0.5f) }
@@ -679,6 +681,8 @@ fun PlayerScreen(
                 @Suppress("DEPRECATION")
                 val h = if (videoSize.unappliedRotationDegrees % 180 == 0) videoSize.height else videoSize.width
                 PipHelper.updatePipParams(context, controller, w, h)
+                videoWidth = w
+                videoHeight = h
             }
             override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
                 if (events.contains(androidx.media3.common.Player.EVENT_IS_PLAYING_CHANGED) || events.contains(androidx.media3.common.Player.EVENT_MEDIA_ITEM_TRANSITION)) {
@@ -688,6 +692,8 @@ fun PlayerScreen(
                     @Suppress("DEPRECATION")
                     val h = if (vs.unappliedRotationDegrees % 180 == 0) vs.height else vs.width
                     PipHelper.updatePipParams(context, player, w, h)
+                    videoWidth = w
+                    videoHeight = h
                 }
             }
         }
@@ -698,6 +704,8 @@ fun PlayerScreen(
         @Suppress("DEPRECATION")
                     val h = if (vs.unappliedRotationDegrees % 180 == 0) vs.height else vs.width
         PipHelper.updatePipParams(context, controller, w, h)
+        videoWidth = w
+        videoHeight = h
         
         val pipReceiver = PipActionReceiver(controller)
         val filter = android.content.IntentFilter(PipActionReceiver.ACTION_PIP_CONTROL)
@@ -779,7 +787,9 @@ fun PlayerScreen(
         }
     }
 
-    Box(modifier = Modifier
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
         .fillMaxSize()
         .background(Color.Black)
         .pointerInput(mediaController, isLocked) {
@@ -943,6 +953,7 @@ fun PlayerScreen(
             }
         }
     ) {
+        val density = androidx.compose.ui.platform.LocalDensity.current.density
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
@@ -954,7 +965,7 @@ fun PlayerScreen(
             },
             update = { view ->
                 view.player = mediaController
-                view.resizeMode = resizeMode
+                view.resizeMode = if (resizeMode == 5) androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT else resizeMode
                 view.keepScreenOn = keepScreenAwake && isPlaying
                 view.subtitleView?.let { subtitleView ->
                     val colorInt = android.graphics.Color.argb(
@@ -978,7 +989,7 @@ fun PlayerScreen(
             onRelease = { view ->
                 view.player = null
             },
-            modifier = Modifier.fillMaxSize().graphicsLayer {
+            modifier = (if (resizeMode == 5 && videoWidth > 0 && videoHeight > 0) Modifier.size((videoWidth / density).dp, (videoHeight / density).dp) else Modifier.fillMaxSize()).graphicsLayer {
                 scaleX = scale
                 scaleY = scale
                 translationX = offsetX
@@ -1572,7 +1583,7 @@ fun PlayerScreen(
                                     resizeMode = when (resizeMode) {
                                         androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
                                         androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+                                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> 5
                                         else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                                     }
                                 }) {
@@ -1583,6 +1594,23 @@ fun PlayerScreen(
                                         else -> androidx.compose.material.icons.Icons.Filled.FullscreenExit
                                     }
                                     Icon(resizeIcon, modifier = Modifier.size(20.dp), contentDescription = "Aspect Ratio", tint = Color.White)
+                                }
+                                IconButton(modifier = Modifier.size(36.dp), onClick = {
+                                    if (android.provider.Settings.canDrawOverlays(context)) {
+                                        val overlayIntent = android.content.Intent("com.example.ACTION_WIDGET_COMMAND")
+                                        overlayIntent.putExtra("command", "ACTION_MINIPLAYER")
+                                        overlayIntent.setPackage(context.packageName)
+                                        context.sendBroadcast(overlayIntent)
+                                        forceBackgroundPlay.set(true)
+                                        backgroundPlayEnabled = true
+                                        onNavigateBack()
+                                    } else {
+                                        val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
+                                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        context.startActivity(intent)
+                                    }
+                                }) {
+                                    Icon(modifier = Modifier.size(20.dp), painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_widget_miniplayer), contentDescription = "Mini Player", tint = Color.White)
                                 }
                                 IconButton(modifier = Modifier.size(36.dp), onClick = {
                                     if (android.provider.Settings.canDrawOverlays(context)) {

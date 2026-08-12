@@ -221,6 +221,8 @@ class MediaWidgetProvider : AppWidgetProvider() {
                 prefs.edit().putString("search_query", "").apply()
             } else if (currentMode == "folder_items") {
                 prefs.edit().putString("explorer_mode", "folders").putString("folder_id", null).apply()
+            } else if (currentMode == "playlist_items") {
+                prefs.edit().putString("explorer_mode", "playlists").putString("folder_id", null).apply()
             } else if (currentMode == "folders" || currentMode == "current" || currentMode == "playlists") {
                 prefs.edit().putString("explorer_mode", "root").apply()
             }
@@ -250,8 +252,14 @@ class MediaWidgetProvider : AppWidgetProvider() {
                     return
                 }
                 "OPEN_FOLDER" -> {
-                    val folderId = intent.getStringExtra("FOLDER_ID")
+                    val folderId = intent.getStringExtra("EXTRA_FOLDER_ID")
                     prefs.edit().putString("explorer_mode", "folder_items").putString("folder_id", folderId).apply()
+                    updateWidgets(context)
+                    return
+                }
+                "OPEN_PLAYLIST" -> {
+                    val folderId = intent.getStringExtra("EXTRA_FOLDER_ID")
+                    prefs.edit().putString("explorer_mode", "playlist_items").putString("folder_id", folderId).apply()
                     updateWidgets(context)
                     return
                 }
@@ -293,6 +301,11 @@ class MediaWidgetProvider : AppWidgetProvider() {
                         val serviceIntent = Intent("com.example.ACTION_WIDGET_COMMAND")
                         serviceIntent.setPackage(context.packageName)
                         serviceIntent.putExtra("command", action)
+                        context.sendBroadcast(serviceIntent)
+                                        } else if (action == "ACTION_PIP") {
+                        val serviceIntent = Intent("com.example.ACTION_WIDGET_COMMAND")
+                        serviceIntent.setPackage(context.packageName)
+                        serviceIntent.putExtra("command", "ACTION_VIDEO_OVERLAY")
                         context.sendBroadcast(serviceIntent)
                                         } else if (action == "ACTION_PIP") {
                         val serviceIntent = Intent("com.example.ACTION_WIDGET_COMMAND")

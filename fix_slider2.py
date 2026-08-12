@@ -3,14 +3,13 @@ import re
 with open('app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt', 'r') as f:
     content = f.read()
 
-# Replace onValueChange logic
-old_slider = re.search(r'onValueChange = \{ value ->.*?\}\n                        \}\n                           \n                        currentPositionMs = newRealPos\.coerceIn\(0, durationMs\)\n                        exoPlayer\?\.seekTo\(currentPositionMs\)\n                    \},', content, re.DOTALL).group(0)
+pattern = re.compile(r'onValueChange = \{ value ->.*?exoPlayer\?\.seekTo\(currentPositionMs\)\s*\},', re.DOTALL)
 
 new_slider = """onValueChange = { value ->
                         isDragging = true
                         val newVirtualPos = (value * virtualDurationMs).toLong()
                         
-                        val mainVideoIndex = if (editState.joinVideoUri != null && !editState.joinAtEnd) 1 else 0
+                        val mainVideoIndexState = if (editState.joinVideoUri != null && !editState.joinAtEnd) 1 else 0
                         val mainDur = if (editState.joinVideoUri != null) virtualDurationMs - joinDurationMs else virtualDurationMs
                         
                         val isJoinPlay = if (editState.joinVideoUri != null) {
@@ -55,12 +54,12 @@ new_slider = """onValueChange = { value ->
                             }
                                
                             currentPositionMs = newRealPos.coerceIn(0, durationMs)
-                            currentIndex = mainVideoIndex
-                            exoPlayer?.seekTo(mainVideoIndex, currentPositionMs)
+                            currentIndex = mainVideoIndexState
+                            exoPlayer?.seekTo(mainVideoIndexState, currentPositionMs)
                         }
                     },"""
 
-content = content.replace(old_slider, new_slider)
+content = pattern.sub(new_slider, content)
 
 with open('app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt', 'w') as f:
     f.write(content)

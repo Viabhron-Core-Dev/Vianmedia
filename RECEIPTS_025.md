@@ -1,0 +1,38 @@
+- Timestamp: 2026-08-11T13:25:00Z
+- Summary: Implemented looping preview of Join video with main video.
+- Files touched:
+  - app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt
+- What was actually done:
+  - Replaced the ExoPlayer builder logic to support multiple `MediaItem`s if `editState.joinVideoUri` is present, creating a playlist.
+  - Adjusted the `LaunchedEffect(exoPlayer)` manual trim loop to track `exoPlayer.currentMediaItemIndex` and only enforce trim/cut rules when the player is on the main video index.
+  - Allowed ExoPlayer to naturally advance to the joined video instead of forcing a loop to the beginning of the main video if it reaches the end.
+  - Decoupled `durationMs` from `exoPlayer.duration` by using `MediaMetadataRetriever` natively for the main video, preventing the timeline from assuming the joined video length is the main video length.
+  - Added a secondary `MediaMetadataRetriever` to fetch the duration of the joined video and properly scale the scrubber timeline.
+  - Updated the manual UI timeline logic to account for multiple windows when updating absolute vs virtual duration, supporting smooth visual tracking across both videos.
+- Verification: local build only
+- Deviation: Kept manual trim boundaries instead of native `ClippingConfiguration` to allow seamless visual scrubbing and backwards compatibility with existing UI sliders without breaking the user experience.
+- Timestamp: 2026-08-11T13:25:00Z
+- Summary: Implemented looping preview of Join video with main video.
+- Files touched:
+  - app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt
+- What was actually done:
+  - Replaced the ExoPlayer builder logic to support multiple `MediaItem`s if `editState.joinVideoUri` is present, creating a playlist.
+  - Adjusted the `LaunchedEffect(exoPlayer)` manual trim loop to track `exoPlayer.currentMediaItemIndex` and only enforce trim/cut rules when the player is on the main video index.
+  - Allowed ExoPlayer to naturally advance to the joined video instead of forcing a loop to the beginning of the main video if it reaches the end.
+  - Decoupled `durationMs` from `exoPlayer.duration` by using `MediaMetadataRetriever` natively for the main video, preventing the timeline from assuming the joined video length is the main video length.
+  - Added a secondary `MediaMetadataRetriever` to fetch the duration of the joined video and properly scale the scrubber timeline.
+  - Updated the manual UI timeline logic to account for multiple windows when updating absolute vs virtual duration, supporting smooth visual tracking across both videos.
+- Verification: local build only
+- Deviation: Kept manual trim boundaries instead of native `ClippingConfiguration` to allow seamless visual scrubbing and backwards compatibility with existing UI sliders without breaking the user experience.
+- Timestamp: 2026-08-11T14:24:00Z
+- Summary: Implemented 100% Original Size aspect ratio mode.
+- Files touched:
+  - app/src/main/java/com/example/ui/screens/PlayerScreen.kt
+- What was actually done:
+  - Added states to track `videoWidth` and `videoHeight`.
+  - Updated `Player.Listener` to sync pixel dimensions when the video transitions or size changes.
+  - Intercepted the 4th cycle state of the aspect ratio toggle button to act as a custom "Original Size" mode (assigned state 5) instead of the redundant `FIXED_WIDTH`.
+  - Overrode the Compose layout modifier on the `AndroidView` layer to constrain the canvas to the literal raw pixel size (converted to DP using `LocalDensity`) when the Original Size mode is active.
+  - Set the parent container alignment to `Center` to ensure the original-sized video anchors gracefully inside the black theater box.
+- Verification: local build only
+- Deviation: N/A - Built exactly the pixel-perfect shrink behavior requested.

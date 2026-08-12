@@ -307,13 +307,21 @@ fun PlaylistDetailScreen(
                         ) {
                             val name = remember(item.mediaUri) { getDisplayNameFromUri(context, Uri.parse(item.mediaUri)) }
                             
-                            Text(
-                                name, 
-                                style = MaterialTheme.typography.bodyMedium, 
-                                modifier = Modifier.weight(1f), 
-                                maxLines = 2,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    name, 
+                                    style = MaterialTheme.typography.bodyMedium, 
+                                    maxLines = 2,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (item.isNotFound) {
+                                    Text(
+                                        "File not found",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
                             
                             if (!isMultiSelectMode) {
                                 Icon(

@@ -21,5 +21,6 @@ data class PlaylistItem(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val playlistId: Int,
     val mediaUri: String,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val isNotFound: Boolean = false
 )

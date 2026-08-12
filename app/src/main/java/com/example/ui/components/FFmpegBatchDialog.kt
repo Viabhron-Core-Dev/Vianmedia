@@ -98,11 +98,11 @@ fun FFmpegBatchDialog(
                     val parts = res.split("x")
                     val targetW = parts[0].toInt()
                     val targetH = parts[1].toInt()
-                    "-vf \"scale=w=$targetW:h=$targetH:force_original_aspect_ratio=decrease,pad=$targetW:$targetH:(ow-iw)/2:(oh-ih)/2\""
+                    "-vf \"scale=w='if(gte(iw,ih),$targetW,$targetH)':h='if(gte(iw,ih),$targetH,$targetW)':force_original_aspect_ratio=decrease,pad='if(gte(iw,ih),$targetW,$targetH)':'if(gte(iw,ih),$targetH,$targetW)':(ow-iw)/2:(oh-ih)/2\""
                 }
                 
                 val cmd = when(format) {
-                    "mp4" -> "-y -i %INPUT% $resArg -r $fps -vcodec libx264 -crf $crf -preset $presetArg %OUTPUT%"
+                    "mp4" -> "-y -i %INPUT% $resArg -r $fps -vcodec libx264 -crf $crf -preset $presetArg -metadata:s:v:0 rotate=0 %OUTPUT%"
                     "mp3" -> "-y -i %INPUT% -vn -acodec libmp3lame -q:a 2 %OUTPUT%"
                     "gif" -> "-y -i %INPUT% -vf \"fps=15,scale=320:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" -loop 0 %OUTPUT%"
                     else -> "-y -i %INPUT% %OUTPUT%"
