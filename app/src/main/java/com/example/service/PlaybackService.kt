@@ -83,45 +83,94 @@ registerReceiver(widgetCommandReceiver, filter)
 }
 
 PlayerManager.exoPlayer?.addListener(object : Player.Listener {
-override fun onIsPlayingChanged(isPlaying: Boolean) { updateWidgetUI() }
-override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) { updateWidgetUI() }
-override fun onRepeatModeChanged(repeatMode: Int) { updateWidgetUI() }
-override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) { updateWidgetUI() }
-override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) { updateWidgetUI() }
+override fun onIsPlayingChanged(isPlaying: Boolean) {
+    com.example.LogKeeper.log("PlaybackService: onIsPlayingChanged = $isPlaying", "PlaybackService")
+    updateWidgetUI()
+}
+override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
+    val reasonStr = when (reason) {
+        Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> "AUTO"
+        Player.MEDIA_ITEM_TRANSITION_REASON_SEEK -> "SEEK"
+        Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED -> "PLAYLIST_CHANGED"
+        Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> "REPEAT"
+        else -> "UNKNOWN($reason)"
+    }
+    com.example.LogKeeper.log("PlaybackService: onMediaItemTransition to '${mediaItem?.mediaMetadata?.title}' (reason: $reasonStr)", "PlaybackService")
+    updateWidgetUI()
+}
+override fun onRepeatModeChanged(repeatMode: Int) {
+    com.example.LogKeeper.log("PlaybackService: onRepeatModeChanged = $repeatMode", "PlaybackService")
+    updateWidgetUI()
+}
+override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+    com.example.LogKeeper.log("PlaybackService: onShuffleModeEnabledChanged = $shuffleModeEnabled", "PlaybackService")
+    updateWidgetUI()
+}
+override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+    com.example.LogKeeper.log("PlaybackService: onTimelineChanged (itemCount=${timeline.windowCount})", "PlaybackService")
+    updateWidgetUI()
+}
 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-val cause = error.cause?.message ?: "Unknown"
-com.example.LogKeeper.logError("PlaybackService", "Error: ${error.errorCodeName} - ${error.message} - Cause: $cause", error)
+    val cause = error.cause?.message ?: "Unknown"
+    com.example.LogKeeper.logError("PlaybackService", "Error: ${error.errorCodeName} - ${error.message} - Cause: $cause", error)
 }
 override fun onPlaybackStateChanged(playbackState: Int) {
-val stateName = when (playbackState) {
-Player.STATE_IDLE -> "STATE_IDLE"
-Player.STATE_BUFFERING -> "STATE_BUFFERING"
-Player.STATE_READY -> "STATE_READY"
-Player.STATE_ENDED -> "STATE_ENDED"
-else -> "UNKNOWN"
-}
-com.example.LogKeeper.log("Playback state changed to: $stateName", "PlaybackService")
-if (playbackState == Player.STATE_ENDED) {
-val player = PlayerManager.exoPlayer
-if (player?.repeatMode == Player.REPEAT_MODE_OFF) {
-stopSelf()
-}
-} else if (playbackState == Player.STATE_IDLE) {
-val player = PlayerManager.exoPlayer
-if (player != null && player.mediaItemCount == 0) {
-stopSelf()
-}
-}
+    val stateName = when (playbackState) {
+        Player.STATE_IDLE -> "STATE_IDLE"
+        Player.STATE_BUFFERING -> "STATE_BUFFERING"
+        Player.STATE_READY -> "STATE_READY"
+        Player.STATE_ENDED -> "STATE_ENDED"
+        else -> "UNKNOWN"
+    }
+    com.example.LogKeeper.log("Playback state changed to: $stateName", "PlaybackService")
+    if (playbackState == Player.STATE_ENDED) {
+        val player = PlayerManager.exoPlayer
+        if (player?.repeatMode == Player.REPEAT_MODE_OFF) {
+            com.example.LogKeeper.log("Playback ended with repeatMode OFF -> stopping service & removing notification", "PlaybackService")
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                }
+                val notificationManager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                notificationManager?.cancelAll()
+            } catch (e: Exception) {
+                com.example.LogKeeper.logError("PlaybackService", "Error stopping foreground on STATE_ENDED", e)
+            }
+            stopSelf()
+        }
+    } else if (playbackState == Player.STATE_IDLE) {
+        val player = PlayerManager.exoPlayer
+        if (player != null && player.mediaItemCount == 0) {
+            com.example.LogKeeper.log("Playback IDLE with 0 items -> stopping service & removing notification", "PlaybackService")
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                }
+                val notificationManager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                notificationManager?.cancelAll()
+            } catch (e: Exception) {}
+            stopSelf()
+        }
+    }
 }
 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
-val player = PlayerManager.exoPlayer
-if (player?.repeatMode == Player.REPEAT_MODE_OFF) {
-player.stop()
-player.clearMediaItems()
-stopSelf()
-}
-}
+    com.example.LogKeeper.log("PlaybackService: onPlayWhenReadyChanged = $playWhenReady, reason = $reason", "PlaybackService")
+    if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
+        val player = PlayerManager.exoPlayer
+        if (player?.repeatMode == Player.REPEAT_MODE_OFF) {
+            com.example.LogKeeper.log("End of media item reached with repeatMode OFF -> stopping player", "PlaybackService")
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                }
+                val notificationManager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                notificationManager?.cancelAll()
+            } catch (e: Exception) {}
+            player.stop()
+            player.clearMediaItems()
+            stopSelf()
+        }
+    }
 }
 })
 
@@ -280,8 +329,15 @@ super.onTaskRemoved(rootIntent)
 com.example.LogKeeper.log("onTaskRemoved called, cleaning up.", "PlaybackService")
 val player = mediaSession?.player
 if (player != null && (!player.playWhenReady || player.mediaItemCount == 0 || player.playbackState == androidx.media3.common.Player.STATE_ENDED)) {
-player.stop()
-stopSelf()
+    try {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        }
+        val notificationManager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+        notificationManager?.cancelAll()
+    } catch (e: Exception) {}
+    player.stop()
+    stopSelf()
 }
 }
 
@@ -459,7 +515,17 @@ composeView = null
     }
 
     override fun onDestroy() {
+        com.example.LogKeeper.log("PlaybackService onDestroy: cleaning up notification and session", "PlaybackService")
         try { unregisterReceiver(widgetCommandReceiver) } catch (e: Exception) {}
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            }
+            val notificationManager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+            notificationManager?.cancelAll()
+        } catch (e: Exception) {
+            com.example.LogKeeper.logError("PlaybackService", "Error stopping foreground on onDestroy", e)
+        }
         mediaSession?.run {
             PlayerManager.release()
             release()
@@ -499,10 +565,20 @@ composeView = null
                 return
             }
             val player = PlayerManager.exoPlayer ?: return
-            when (intent.getStringExtra("command")) {
+            val cmd = intent.getStringExtra("command")
+            com.example.LogKeeper.log("widgetCommandReceiver received command: $cmd", "PlaybackService")
+            when (cmd) {
                 "ACTION_MINIPLAYER", "ACTION_OVERLAY" -> showOverlay(false)
                 "ACTION_VIDEO_OVERLAY" -> showOverlay(true)
                 "ACTION_CLOSE" -> {
+                    com.example.LogKeeper.log("ACTION_CLOSE received -> stopping and removing notification", "PlaybackService")
+                    try {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                            stopForeground(STOP_FOREGROUND_REMOVE)
+                        }
+                        val notificationManager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                        notificationManager?.cancelAll()
+                    } catch (e: Exception) {}
                     player.stop()
                     player.clearMediaItems()
                     hideOverlay()

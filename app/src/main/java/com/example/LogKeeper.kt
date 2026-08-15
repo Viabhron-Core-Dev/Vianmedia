@@ -76,6 +76,15 @@ object LogKeeper {
         _logs.value = newList
     }
 
+    fun logWarn(tag: String, message: String) {
+        if (!_isEnabled.value) return
+        val entry = LogEntry(System.currentTimeMillis(), false, "WARN/$tag", message)
+        Log.w(TAG, entry.formattedString)
+        val currentList = _logs.value
+        val newList = if (currentList.size > 500) currentList.drop(1) + entry else currentList + entry
+        _logs.value = newList
+    }
+
     fun logError(tag: String, message: String, throwable: Throwable? = null) {
         if (!_isEnabled.value) return
         val stackTrace = throwable?.let { Log.getStackTraceString(it) }

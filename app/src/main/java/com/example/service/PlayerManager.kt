@@ -22,6 +22,7 @@ object PlayerManager {
 
     fun initialize(context: Context, skipSilence: Boolean = false) {
         if (exoPlayer != null) return
+        com.example.LogKeeper.log("Initializing PlayerManager ExoPlayer", "PlayerManager")
         
         val dataSourceFactory = DefaultDataSource.Factory(context)
         val mediaSourceFactory = DefaultMediaSourceFactory(context)

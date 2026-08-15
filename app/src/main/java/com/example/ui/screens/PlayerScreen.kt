@@ -53,6 +53,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Loop
 import androidx.compose.material.icons.filled.AspectRatio
@@ -252,6 +253,11 @@ fun PlayerScreen(
             showPlayPauseFlash = false
         }
     }
+    val decodedUriString = remember(uriString) { String(android.util.Base64.decode(uriString, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)) }
+    val decodedUri = remember(uriString) { Uri.parse(decodedUriString) }
+    var currentMediaTitle by remember { mutableStateOf(getDisplayNameFromUri(context, decodedUri)) }
+    var currentMediaUri by remember { mutableStateOf(decodedUri) }
+
     var isPlaying by remember { mutableStateOf(false) }
     
     var abRepeatStart by remember { mutableStateOf<Long?>(null) }
@@ -259,14 +265,42 @@ fun PlayerScreen(
     var sleepTimerEndTime by remember { mutableStateOf<Long?>(null) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var offsetY by remember { mutableFloatStateOf(0f) }
+    var backgroundPlayEnabled by remember { mutableStateOf(false) }
+    val backgroundPlayEnabledRef = androidx.compose.runtime.rememberUpdatedState(backgroundPlayEnabled)
+    val forceBackgroundPlay = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
+
+    androidx.activity.compose.BackHandler {
+        com.example.LogKeeper.log("BackHandler triggered in PlayerScreen (bgPlay=${backgroundPlayEnabledRef.value})", "PlayerScreen")
+        if (!backgroundPlayEnabledRef.value && !forceBackgroundPlay.get()) {
+            mediaController?.let { controller ->
+                controller.pause()
+                controller.stop()
+                controller.clearMediaItems()
+            }
+            try {
+                val stopIntent = android.content.Intent(context, com.example.service.PlaybackService::class.java)
+                context.stopService(stopIntent)
+            } catch (e: Exception) {}
+        }
+        onNavigateBack()
+    }
+
     LaunchedEffect(mediaController) {
         while (true) {
-            isPlaying = mediaController?.isPlaying == true
+            val actualIsPlaying = mediaController?.isPlaying == true
+            if (isPlaying != actualIsPlaying) {
+                com.example.LogKeeper.log("[UI_MISMATCH_DETECTED] UI isPlaying=$isPlaying, ExoPlayer isPlaying=$actualIsPlaying. Resyncing.", "PlayerScreen")
+                isPlaying = actualIsPlaying
+            }
             
             // A-B repeat check
             if (abRepeatStart != null && abRepeatEnd != null && isPlaying) {
                 val currentPos = mediaController?.currentPosition ?: 0L
                 if (currentPos >= abRepeatEnd!!) {
+                    com.example.LogKeeper.log("A-B repeat triggered: seeking back to $abRepeatStart", "PlayerScreen")
                     mediaController?.seekTo(abRepeatStart!!)
                 }
             }
@@ -274,6 +308,7 @@ fun PlayerScreen(
             // Sleep timer check
             if (sleepTimerEndTime != null && isPlaying) {
                 if (System.currentTimeMillis() >= sleepTimerEndTime!!) {
+                    com.example.LogKeeper.log("Sleep timer reached: pausing playback", "PlayerScreen")
                     mediaController?.pause()
                     sleepTimerEndTime = null
                 }
@@ -282,12 +317,6 @@ fun PlayerScreen(
             kotlinx.coroutines.delay(300)
         }
     }
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offsetX by remember { mutableFloatStateOf(0f) }
-    var offsetY by remember { mutableFloatStateOf(0f) }
-    var backgroundPlayEnabled by remember { mutableStateOf(false) }
-    val backgroundPlayEnabledRef = androidx.compose.runtime.rememberUpdatedState(backgroundPlayEnabled)
-    val forceBackgroundPlay = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
     val settingsManager = com.example.data.SettingsManager.getInstance(context)
     val keepScreenAwake by settingsManager.keepScreenAwake.collectAsState()
     val decodedUriStringForInit = remember(uriString) { String(android.util.Base64.decode(uriString, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)) }
@@ -373,9 +402,6 @@ fun PlayerScreen(
             showControls = false
         }
     }
-
-    val decodedUriString = remember(uriString) { String(android.util.Base64.decode(uriString, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)) }
-    val decodedUri = remember(uriString) { Uri.parse(decodedUriString) }
 
     LaunchedEffect(decodedUri) {
         val mimeType = context.contentResolver.getType(decodedUri)
@@ -590,7 +616,39 @@ fun PlayerScreen(
 
         // updateOrientation(controller.videoSize) removed to prevent old video size from forcing incorrect orientation
         val mainListener = object : androidx.media3.common.Player.Listener {
+            override fun onIsPlayingChanged(playing: Boolean) {
+                com.example.LogKeeper.log("PlayerScreen: onIsPlayingChanged = $playing", "PlayerScreen")
+                isPlaying = playing
+            }
+
+            override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
+                val reasonStr = when (reason) {
+                    androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> "AUTO"
+                    androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_SEEK -> "SEEK"
+                    androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED -> "PLAYLIST_CHANGED"
+                    androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> "REPEAT"
+                    else -> "UNKNOWN($reason)"
+                }
+                val uri = mediaItem?.localConfiguration?.uri ?: mediaItem?.mediaId?.let { Uri.parse(it) }
+                val title = mediaItem?.mediaMetadata?.title?.toString()
+                com.example.LogKeeper.log("PlayerScreen: onMediaItemTransition to '$title' / $uri (reason: $reasonStr)", "PlayerScreen")
+                if (uri != null) {
+                    currentMediaUri = uri
+                    currentMediaTitle = title ?: getDisplayNameFromUri(context, uri)
+                }
+
+                // If transition happened automatically and repeat mode is OFF, do not auto-play next video
+                if (reason == androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                    val currentMode = controller.repeatMode
+                    if (currentMode == androidx.media3.common.Player.REPEAT_MODE_OFF) {
+                        com.example.LogKeeper.log("Auto-transition occurred with repeatMode OFF -> pausing playback", "PlayerScreen")
+                        controller.pause()
+                    }
+                }
+            }
+
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                com.example.LogKeeper.log("PlayerScreen: onTracksChanged", "PlayerScreen")
                 // Restore track selection
                 val audioTrackIdx = settingsManager.getTrackSelection(decodedUriString, androidx.media3.common.C.TRACK_TYPE_AUDIO)
                 val subtitleTrackIdx = settingsManager.getTrackSelection(decodedUriString, androidx.media3.common.C.TRACK_TYPE_TEXT)
@@ -641,18 +699,42 @@ fun PlayerScreen(
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
+                val stateName = when (playbackState) {
+                    androidx.media3.common.Player.STATE_IDLE -> "STATE_IDLE"
+                    androidx.media3.common.Player.STATE_BUFFERING -> "STATE_BUFFERING"
+                    androidx.media3.common.Player.STATE_READY -> "STATE_READY"
+                    androidx.media3.common.Player.STATE_ENDED -> "STATE_ENDED"
+                    else -> "UNKNOWN"
+                }
+                com.example.LogKeeper.log("PlayerScreen: PlaybackState changed to: $stateName", "PlayerScreen")
                 if (playbackState == androidx.media3.common.Player.STATE_ENDED) {
                     val currentMode = controller.repeatMode
                     val hasNext = controller.hasNextMediaItem()
                     if (currentMode == androidx.media3.common.Player.REPEAT_MODE_OFF && !hasNext) {
-                        // Service will stop itself when STATE_ENDED
+                        com.example.LogKeeper.log("Player reached STATE_ENDED with no loop/next -> navigating back", "PlayerScreen")
                         onNavigateBack()
                     }
                 }
             }
+
+            override fun onPositionDiscontinuity(
+                oldPosition: androidx.media3.common.Player.PositionInfo,
+                newPosition: androidx.media3.common.Player.PositionInfo,
+                reason: Int
+            ) {
+                com.example.LogKeeper.log("PlayerScreen: PositionDiscontinuity from ${oldPosition.positionMs}ms to ${newPosition.positionMs}ms (reason: $reason)", "PlayerScreen")
+            }
+
+            override fun onRepeatModeChanged(mode: Int) {
+                com.example.LogKeeper.log("PlayerScreen: onRepeatModeChanged = $mode", "PlayerScreen")
+                repeatMode = mode
+            }
+
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                com.example.LogKeeper.log("PlayerScreen: onPlayWhenReadyChanged = $playWhenReady, reason = $reason", "PlayerScreen")
                 if (reason == androidx.media3.common.Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
                     if (controller.repeatMode == androidx.media3.common.Player.REPEAT_MODE_OFF) {
+                        com.example.LogKeeper.log("End of media item reached with repeatMode OFF -> navigating back", "PlayerScreen")
                         onNavigateBack()
                     }
                 }
@@ -1181,16 +1263,29 @@ fun PlayerScreen(
                             .align(Alignment.TopCenter)
                             .windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.systemBarsIgnoringVisibility.union(androidx.compose.foundation.layout.WindowInsets.displayCutout).only(androidx.compose.foundation.layout.WindowInsetsSides.Horizontal + androidx.compose.foundation.layout.WindowInsetsSides.Top))
                     ) {
-                        val displayName = remember(decodedUriString) { getDisplayNameFromUri(context, Uri.parse(decodedUriString)) }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 0.dp)
                         ) {
-                            IconButton(onClick = onNavigateBack) {
+                            IconButton(onClick = {
+                                com.example.LogKeeper.log("Back button clicked in PlayerScreen top bar", "PlayerScreen")
+                                if (!backgroundPlayEnabledRef.value && !forceBackgroundPlay.get()) {
+                                    mediaController?.let { controller ->
+                                        controller.pause()
+                                        controller.stop()
+                                        controller.clearMediaItems()
+                                    }
+                                    try {
+                                        val stopIntent = android.content.Intent(context, com.example.service.PlaybackService::class.java)
+                                        context.stopService(stopIntent)
+                                    } catch (e: Exception) {}
+                                }
+                                onNavigateBack()
+                            }) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                             }
                             Text(
-                                text = displayName,
+                                text = currentMediaTitle,
                                 color = Color.White,
                                 fontSize = 16.sp,
                                 fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
@@ -1199,34 +1294,41 @@ fun PlayerScreen(
                                 modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
                             )
                             IconButton(onClick = { 
+                                com.example.LogKeeper.log("Speed button clicked", "PlayerScreen")
                                 showSpeedDialog = true
                             }) {
                                 Icon(Icons.Filled.Speed, contentDescription = "Speed", tint = if (playbackSpeed != 1f) Color(0xFF2196F3) else Color.White)
                             }
-                            IconButton(onClick = { showAudioDialog = true }) {
+                            IconButton(onClick = { 
+                                com.example.LogKeeper.log("Audio tracks button clicked", "PlayerScreen")
+                                showAudioDialog = true 
+                            }) {
                                 Icon(Icons.Filled.MusicNote, contentDescription = "Audio track", tint = Color.White)
                             }
-                            IconButton(onClick = { showSubtitleDialog = true }) {
+                            IconButton(onClick = { 
+                                com.example.LogKeeper.log("Subtitles button clicked", "PlayerScreen")
+                                showSubtitleDialog = true 
+                            }) {
                                 Icon(Icons.Filled.Subtitles, contentDescription = "Subtitles", tint = Color.White)
                             }
                             Box {
 
                                 
-                                LaunchedEffect(decodedUri) {
-                                    detailsName = decodedUri.lastPathSegment ?: "Unknown"
-                                    detailsPath = decodedUri.toString()
-                                    if (decodedUri.scheme == "file") {
+                                LaunchedEffect(currentMediaUri) {
+                                    detailsName = currentMediaUri.lastPathSegment ?: "Unknown"
+                                    detailsPath = currentMediaUri.toString()
+                                    if (currentMediaUri.scheme == "file") {
                                         try {
-                                            val file = java.io.File(decodedUri.path!!)
+                                            val file = java.io.File(currentMediaUri.path!!)
                                             detailsName = file.name
                                             val size = file.length()
                                             detailsSize = if (size > 1024 * 1024) "${size / (1024 * 1024)} MB" else "${size / 1024} KB"
                                             detailsDate = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(file.lastModified()))
                                             detailsPath = file.absolutePath
                                         } catch (e: Exception) {}
-                                    } else if (decodedUri.scheme == "content") {
+                                    } else if (currentMediaUri.scheme == "content") {
                                         try {
-                                            context.contentResolver.query(decodedUri, null, null, null, null)?.use { cursor ->
+                                            context.contentResolver.query(currentMediaUri, null, null, null, null)?.use { cursor ->
                                                 if (cursor.moveToFirst()) {
                                                     val nameCol = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns.DISPLAY_NAME)
                                                     if (nameCol != -1) cursor.getString(nameCol)?.let { detailsName = it }
@@ -1490,6 +1592,7 @@ fun PlayerScreen(
                             
                                 IconButton(
                                     onClick = {
+                                        com.example.LogKeeper.log("Previous button clicked", "PlayerScreen")
                                         mediaController?.let { controller ->
                                             if (controller.hasPreviousMediaItem()) {
                                                 controller.seekToPreviousMediaItem()
@@ -1510,6 +1613,7 @@ fun PlayerScreen(
 
                                 IconButton(
                                     onClick = {
+                                        com.example.LogKeeper.log("Play/Pause button clicked (currently isPlaying=$isPlaying)", "PlayerScreen")
                                         mediaController?.let { controller ->
                                             if (controller.playbackState == androidx.media3.common.Player.STATE_ENDED || controller.playbackState == androidx.media3.common.Player.STATE_IDLE) {
                                                 controller.seekTo(0)
@@ -1534,6 +1638,7 @@ fun PlayerScreen(
                                 
                                 IconButton(
                                     onClick = {
+                                        com.example.LogKeeper.log("Next button clicked", "PlayerScreen")
                                         mediaController?.let { controller ->
                                             if (controller.hasNextMediaItem()) {
                                                 controller.seekToNextMediaItem()
@@ -1563,6 +1668,7 @@ fun PlayerScreen(
                                         androidx.media3.common.Player.REPEAT_MODE_ALL -> androidx.media3.common.Player.REPEAT_MODE_ONE
                                         else -> androidx.media3.common.Player.REPEAT_MODE_OFF
                                     }
+                                    com.example.LogKeeper.log("Repeat mode toggled from $repeatMode to $nextMode", "PlayerScreen")
                                     repeatMode = nextMode
                                     mediaController?.repeatMode = nextMode
                                 }) {
@@ -1575,6 +1681,7 @@ fun PlayerScreen(
                                 }
                                 IconButton(modifier = Modifier.size(36.dp), onClick = { 
                                     backgroundPlayEnabled = !backgroundPlayEnabled
+                                    com.example.LogKeeper.log("Background play toggled -> $backgroundPlayEnabled", "PlayerScreen")
                                     Toast.makeText(context, "Background play " + if (backgroundPlayEnabled) "enabled" else "disabled", Toast.LENGTH_SHORT).show()
                                 }) {
                                     Icon(modifier = Modifier.size(20.dp), imageVector = Icons.Filled.Headphones, contentDescription = "Background play", tint = if (backgroundPlayEnabled) Color(0xFF2196F3) else Color.White)
@@ -1610,7 +1717,7 @@ fun PlayerScreen(
                                         context.startActivity(intent)
                                     }
                                 }) {
-                                    Icon(modifier = Modifier.size(20.dp), painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_widget_miniplayer), contentDescription = "Mini Player", tint = Color.White)
+                                    Icon(modifier = Modifier.size(20.dp), imageVector = Icons.AutoMirrored.Filled.PlaylistPlay, contentDescription = "Mini Player", tint = Color.White)
                                 }
                                 IconButton(modifier = Modifier.size(36.dp), onClick = {
                                     if (android.provider.Settings.canDrawOverlays(context)) {

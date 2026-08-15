@@ -123,8 +123,10 @@ class MainActivity : ComponentActivity() {
     setContent {
       val currentIntent by _currentIntent.collectAsState()
       val settings = com.example.data.SettingsManager.getInstance(this)
+      val themePref by settings.themePreference.collectAsState()
+      val fontPref by settings.fontPreference.collectAsState()
       com.example.service.PlayerManager.initialize(this, false)
-      MyApplicationTheme {
+      MyApplicationTheme(themePreference = themePref, fontPreference = fontPref) {
         var isLoggerOpen by remember { mutableStateOf(false) }
 
         if (isLoggerOpen) {

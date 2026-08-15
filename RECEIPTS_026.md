@@ -1,0 +1,9 @@
+- Timestamp: 2026-08-13T09:08:00Z
+- Summary: Changed the Mini Player button icon to a standard Material playlist symbol.
+- Files touched:
+  - app/src/main/java/com/example/ui/screens/PlayerScreen.kt
+- What was actually done:
+  - Imported `androidx.compose.material.icons.automirrored.filled.PlaylistPlay`.
+  - Replaced the custom drawable `painterResource(id = com.example.R.drawable.ic_widget_miniplayer)` with the `imageVector = Icons.AutoMirrored.Filled.PlaylistPlay` in the Mini Player `IconButton`.
+- Verification: local build only
+- Deviation: N/A - Implemented exactly what was discussed.

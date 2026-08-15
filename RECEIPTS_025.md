@@ -36,3 +36,39 @@
   - Set the parent container alignment to `Center` to ensure the original-sized video anchors gracefully inside the black theater box.
 - Verification: local build only
 - Deviation: N/A - Built exactly the pixel-perfect shrink behavior requested.
+- Timestamp: 2026-08-12T13:30:00Z
+- Summary: Fixed frozen preview player when adding a join video in the editor.
+- Files touched:
+  - app/src/main/java/com/example/ui/screens/VideoEditorScreen.kt
+- What was actually done:
+  - Added `view.player = exoPlayer` assignment inside the Jetpack Compose `AndroidView.update` block for the video editor's preview surface.
+  - This prevents the visual surface from holding onto the previously released ExoPlayer instance when a new playlist is built.
+- Verification: local build only
+- Deviation: N/A - Implemented exactly the architectural fix discussed.
+- Timestamp: 2026-08-12T14:47:00Z
+- Summary: Refactored SettingsScreen into a hierarchical list structure.
+- Files touched:
+  - app/src/main/java/com/example/ui/screens/SettingsScreen.kt
+- What was actually done:
+  - Replaced the monolithic SettingsScreen `Column` with a `Crossfade` router.
+  - Extracted the inline settings blocks (Storage, Media, Data Management, Developer, Notifications) into dedicated private Composable pages with their own Scaffolds.
+  - Designed `MainSettingsMenu` to render a clean, Material 3 `LazyColumn` of `SettingsListItem` components acting as a table of contents.
+  - Linked the existing `PlayerSettingsScreen`, `AudioSettingsScreen`, and `PermissionsManagerScreen` into this new routing structure so they behave as standard sub-pages instead of pop-up Dialogs.
+- Verification: local build only
+- Deviation: N/A - Implemented exactly the architectural fix discussed.
+- Timestamp: 2026-08-12T14:59:00Z
+- Summary: Implemented "General" settings page for Theme and Font customization.
+- Files touched:
+  - app/src/main/java/com/example/data/SettingsManager.kt
+  - app/src/main/java/com/example/ui/screens/SettingsScreen.kt
+  - app/src/main/java/com/example/ui/theme/Theme.kt
+  - app/src/main/java/com/example/ui/theme/Type.kt
+  - app/src/main/java/com/example/MainActivity.kt
+- What was actually done:
+  - Added `themePreference` (System Default, Light, Dark, True Black) and `fontPreference` (Default, Serif, Monospace) state flows to `SettingsManager`.
+  - In `SettingsScreen.kt`, appended "General" option to the `MainSettingsMenu` `LazyColumn`, mapped to a new `GeneralSettingsPage` composable with radio buttons.
+  - Rewrote `Theme.kt` and `Type.kt` to define `DarkBlueColorScheme`, `TrueBlackColorScheme`, `SerifTypography`, and `MonospaceTypography`.
+  - Updated `MyApplicationTheme` composable to accept preferences and return the dynamically requested MaterialTheme combination.
+  - Intercepted the root `setContent` in `MainActivity.kt` to globally observe these preferences from `SettingsManager`, enabling instant UI-wide repainting upon change.
+- Verification: local build only
+- Deviation: N/A - Implemented exactly the architectural approach discussed.

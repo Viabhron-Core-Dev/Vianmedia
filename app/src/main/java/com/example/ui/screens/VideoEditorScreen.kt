@@ -616,6 +616,9 @@ fun VideoEditorScreen(
                                 }
                             },
                             update = { view ->
+                                if (view.player != exoPlayer) {
+                                    view.player = exoPlayer
+                                }
                                 view.resizeMode = if (editState.aspectRatio != "Original") androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL else androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                             },
                             modifier = Modifier.fillMaxSize()

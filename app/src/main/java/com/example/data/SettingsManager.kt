@@ -24,6 +24,12 @@ class SettingsManager private constructor(context: Context) {
     private val _keepScreenAwake = MutableStateFlow(true)
     val keepScreenAwake: StateFlow<Boolean> = _keepScreenAwake.asStateFlow()
 
+    private val _themePreference = MutableStateFlow("System Default")
+    val themePreference: StateFlow<String> = _themePreference.asStateFlow()
+
+    private val _fontPreference = MutableStateFlow("Default")
+    val fontPreference: StateFlow<String> = _fontPreference.asStateFlow()
+
     init {
         val excludedStrSet = prefs.getStringSet("excluded_folders", emptySet())
         if (!excludedStrSet.isNullOrEmpty()) {
@@ -34,6 +40,10 @@ class SettingsManager private constructor(context: Context) {
         
         _showLoggerFab.value = prefs.getBoolean("show_logger_fab", true)
         _keepScreenAwake.value = prefs.getBoolean("keep_screen_awake", true)
+
+        _themePreference.value = prefs.getString("theme_preference", "System Default") ?: "System Default"
+        _fontPreference.value = prefs.getString("font_preference", "Default") ?: "Default"
+
 
         val defaultExts = setOf("mp4", "mkv", "mp3", "webm", "3gp", "avi", "mov", "flv", "wmv", "m4v", "aac", "wav", "flac")
         val savedExts = prefs.getStringSet("extensions", null)
@@ -86,6 +96,16 @@ class SettingsManager private constructor(context: Context) {
     fun setKeepScreenAwake(keep: Boolean) {
         _keepScreenAwake.value = keep
         prefs.edit().putBoolean("keep_screen_awake", keep).apply()
+    }
+
+    fun setThemePreference(theme: String) {
+        _themePreference.value = theme
+        prefs.edit().putString("theme_preference", theme).apply()
+    }
+
+    fun setFontPreference(font: String) {
+        _fontPreference.value = font
+        prefs.edit().putString("font_preference", font).apply()
     }
 
 
