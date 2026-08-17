@@ -148,10 +148,16 @@ fun Context.findActivity(): Activity? = when (this) {
 }
 
 fun formatTime(ms: Long): String {
+    if (ms <= 0L) return "00:00"
     val totalSeconds = ms / 1000
-    val minutes = totalSeconds / 60
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
-    return String.format("%02d:%02d", minutes, seconds)
+    return if (hours > 0) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
+    }
 }
 
 enum class GestureType { NONE, SEEK, BRIGHTNESS, VOLUME, ZOOM_PAN }
@@ -850,10 +856,6 @@ fun PlayerScreen(
                 val currentPos = controller.currentPosition
                 val dur = controller.duration
                 com.example.data.SettingsManager.getInstance(context).savePlaybackState(decodedUriString, currentPos, dur)
-                if (!backgroundPlayEnabledRef.value && !forceBackgroundPlay.get()) {
-                    controller.clearMediaItems()
-                    controller.stop()
-                }
             }
         }
     }
@@ -1781,7 +1783,7 @@ fun PlayerScreen(
 
     if (showDetailsDialog) {
         val duration = mediaController?.duration ?: 0L
-        val durationStr = if (duration > 0) String.format(java.util.Locale.US, "%02d:%02d", java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(duration), java.util.concurrent.TimeUnit.MILLISECONDS.toSeconds(duration) % 60) else "Unknown"
+        val durationStr = if (duration > 0) formatTime(duration) else "Unknown"
         
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showDetailsDialog = false },
