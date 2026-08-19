@@ -35,6 +35,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 fun SettingsScreen(onNavigateBack: () -> Unit) {
     var currentMenu by remember { mutableStateOf("main") }
 
+    androidx.activity.compose.BackHandler(enabled = currentMenu != "main") {
+        currentMenu = "main"
+    }
+
     androidx.compose.animation.Crossfade(targetState = currentMenu, label = "SettingsTransition") { screen ->
         when (screen) {
             "main" -> MainSettingsMenu(

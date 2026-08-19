@@ -24,7 +24,7 @@ class SettingsManager private constructor(context: Context) {
     private val _keepScreenAwake = MutableStateFlow(true)
     val keepScreenAwake: StateFlow<Boolean> = _keepScreenAwake.asStateFlow()
 
-    private val _themePreference = MutableStateFlow("System Default")
+    private val _themePreference = MutableStateFlow("Light")
     val themePreference: StateFlow<String> = _themePreference.asStateFlow()
 
     private val _fontPreference = MutableStateFlow("Default")
@@ -41,7 +41,7 @@ class SettingsManager private constructor(context: Context) {
         _showLoggerFab.value = prefs.getBoolean("show_logger_fab", true)
         _keepScreenAwake.value = prefs.getBoolean("keep_screen_awake", true)
 
-        _themePreference.value = prefs.getString("theme_preference", "System Default") ?: "System Default"
+        _themePreference.value = prefs.getString("theme_preference", "Light") ?: "Light"
         _fontPreference.value = prefs.getString("font_preference", "Default") ?: "Default"
 
 
@@ -109,12 +109,18 @@ class SettingsManager private constructor(context: Context) {
     }
 
 
-    fun savePlaybackState(uri: String, position: Long, duration: Long) {
-        prefs.edit()
+    fun savePlaybackState(uri: String, position: Long, duration: Long, fileName: String? = null) {
+        if (position <= 0L && duration <= 0L) return
+        val editor = prefs.edit()
             .putLong("pos_$uri", position)
             .putLong("dur_$uri", duration)
             .putLong("time_$uri", System.currentTimeMillis())
-            .apply()
+        if (!fileName.isNullOrBlank() && fileName != "Unknown") {
+            editor.putLong("pos_fn_$fileName", position)
+            editor.putLong("dur_fn_$fileName", duration)
+            editor.putLong("time_fn_$fileName", System.currentTimeMillis())
+        }
+        editor.apply()
     }
 
     fun savePlaybackSpeed(uri: String, speed: Float) {
@@ -137,12 +143,22 @@ class SettingsManager private constructor(context: Context) {
         return prefs.getLong("time_$uri", 0L)
     }
 
-    fun getPlaybackPosition(uri: String): Long {
-        return prefs.getLong("pos_$uri", 0L)
+    fun getPlaybackPosition(uri: String, fileName: String? = null): Long {
+        val pos = prefs.getLong("pos_$uri", 0L)
+        if (pos > 0L) return pos
+        if (!fileName.isNullOrBlank() && fileName != "Unknown") {
+            return prefs.getLong("pos_fn_$fileName", 0L)
+        }
+        return 0L
     }
 
-    fun getStoredDuration(uri: String): Long {
-        return prefs.getLong("dur_$uri", -1L)
+    fun getStoredDuration(uri: String, fileName: String? = null): Long {
+        val dur = prefs.getLong("dur_$uri", -1L)
+        if (dur > 0L) return dur
+        if (!fileName.isNullOrBlank() && fileName != "Unknown") {
+            return prefs.getLong("dur_fn_$fileName", -1L)
+        }
+        return -1L
     }
 
     fun saveVideoOrientation(uri: String, isPortrait: Boolean) {
@@ -157,19 +173,24 @@ class SettingsManager private constructor(context: Context) {
         }
     }
 
-    fun removePlaybackState(uri: String) {
-        prefs.edit()
+    fun removePlaybackState(uri: String, fileName: String? = null) {
+        val editor = prefs.edit()
             .remove("time_$uri")
             .remove("pos_$uri")
             .remove("dur_$uri")
             .remove("orient_$uri")
-            .apply()
+        if (!fileName.isNullOrBlank() && fileName != "Unknown") {
+            editor.remove("time_fn_$fileName")
+                .remove("pos_fn_$fileName")
+                .remove("dur_fn_$fileName")
+        }
+        editor.apply()
     }
 
     // A video is finished if we watched past 99%
-    fun isFinished(uri: String): Boolean {
-        val pos = getPlaybackPosition(uri)
-        val dur = getStoredDuration(uri)
+    fun isFinished(uri: String, fileName: String? = null): Boolean {
+        val pos = getPlaybackPosition(uri, fileName)
+        val dur = getStoredDuration(uri, fileName)
         return if (dur > 0L) pos >= dur * 0.99 else false
     }
 

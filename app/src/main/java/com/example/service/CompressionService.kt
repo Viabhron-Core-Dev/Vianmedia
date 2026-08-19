@@ -112,14 +112,35 @@ class CompressionService : Service() {
         var count = 0
         for (uriStr in uris) {
             if (isCancelled) break
+            var sourceBitmap: Bitmap? = null
+            var outBitmap: Bitmap? = null
             try {
                 val uri = Uri.parse(uriStr)
-                val inputStream = contentResolver.openInputStream(uri)
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                inputStream?.close()
+                
+                // Safely calculate sample size if downscaling is requested
+                val options = BitmapFactory.Options()
+                if (maxWidth > 0 && maxHeight > 0) {
+                    options.inJustDecodeBounds = true
+                    contentResolver.openInputStream(uri)?.use { stream ->
+                        BitmapFactory.decodeStream(stream, null, options)
+                    }
+                    val maxTargetDim = maxOf(maxWidth, maxHeight)
+                    val maxSourceDim = maxOf(options.outWidth, options.outHeight)
+                    var sampleSize = 1
+                    while (maxSourceDim / (sampleSize * 2) >= maxTargetDim) {
+                        sampleSize *= 2
+                    }
+                    options.inSampleSize = sampleSize
+                    options.inJustDecodeBounds = false
+                }
 
-                if (bitmap != null) {
-                    var outBitmap = bitmap
+                contentResolver.openInputStream(uri)?.use { stream ->
+                    sourceBitmap = BitmapFactory.decodeStream(stream, null, options)
+                }
+
+                if (sourceBitmap != null) {
+                    val bitmap = sourceBitmap!!
+                    outBitmap = bitmap
                     if (maxWidth > 0 && maxHeight > 0) {
                         val maxDim = maxOf(maxWidth, maxHeight).toFloat()
                         val minDim = minOf(maxWidth, maxHeight).toFloat()
@@ -130,8 +151,8 @@ class CompressionService : Service() {
                         val ratio = minOf(targetW / bitmap.width, targetH / bitmap.height)
                         
                         if (ratio < 1f) {
-                            val newW = (bitmap.width * ratio).toInt()
-                            val newH = (bitmap.height * ratio).toInt()
+                            val newW = (bitmap.width * ratio).toInt().coerceAtLeast(1)
+                            val newH = (bitmap.height * ratio).toInt().coerceAtLeast(1)
                             outBitmap = Bitmap.createScaledBitmap(bitmap, newW, newH, true)
                         }
                     }
@@ -147,15 +168,19 @@ class CompressionService : Service() {
                     val fileName = "${origName}_compressed.${ext}"
                     val outStream: OutputStream? = getOutputStream(outputUriStr, fileName, ext)
                     if (outStream != null) {
-                        outBitmap.compress(compressFormat, quality, outStream)
+                        outBitmap?.compress(compressFormat, quality, outStream)
                         outStream.close()
-                    }
-                    if (outBitmap != bitmap) {
-                        outBitmap.recycle()
                     }
                 }
             } catch (e: Exception) {
                 LogKeeper.logError("CompressionService", "Failed to compress $uriStr", e)
+            } finally {
+                if (outBitmap != null && outBitmap != sourceBitmap && !outBitmap!!.isRecycled) {
+                    outBitmap?.recycle()
+                }
+                if (sourceBitmap != null && !sourceBitmap!!.isRecycled) {
+                    sourceBitmap?.recycle()
+                }
             }
             count++
             val notification = NotificationCompat.Builder(this@CompressionService, CHANNEL_ID)

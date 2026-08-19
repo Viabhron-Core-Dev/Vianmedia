@@ -80,7 +80,6 @@ class MainActivity : ComponentActivity() {
     } else {
         registerReceiver(pipReceiver, filter)
     }
-    com.facebook.drawee.backends.pipeline.Fresco.initialize(this)
     
     coil.Coil.setImageLoader(
         coil.ImageLoader.Builder(this)

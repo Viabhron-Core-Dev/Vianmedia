@@ -884,7 +884,7 @@ fun VideoEditorScreen(
                                 }
                             }
                         }
-                        kotlinx.coroutines.delay(50L) // Poll 20 times a second
+                        kotlinx.coroutines.delay(if (exoPlayer?.isPlaying == true) 50L else 250L)
                     }
                 }
 

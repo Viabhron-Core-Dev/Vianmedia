@@ -280,6 +280,13 @@ fun PlayerScreen(
 
     androidx.activity.compose.BackHandler {
         com.example.LogKeeper.log("BackHandler triggered in PlayerScreen (bgPlay=${backgroundPlayEnabledRef.value})", "PlayerScreen")
+        mediaController?.let { controller ->
+            val pos = controller.currentPosition
+            val dur = controller.duration
+            if (pos > 0L) {
+                com.example.data.SettingsManager.getInstance(context).savePlaybackState(decodedUriString, pos, dur, currentMediaTitle)
+            }
+        }
         if (!backgroundPlayEnabledRef.value && !forceBackgroundPlay.get()) {
             mediaController?.let { controller ->
                 controller.pause()
@@ -295,6 +302,7 @@ fun PlayerScreen(
     }
 
     LaunchedEffect(mediaController) {
+        var lastSavedTime = 0L
         while (true) {
             val actualIsPlaying = mediaController?.isPlaying == true
             if (isPlaying != actualIsPlaying) {
@@ -317,6 +325,21 @@ fun PlayerScreen(
                     com.example.LogKeeper.log("Sleep timer reached: pausing playback", "PlayerScreen")
                     mediaController?.pause()
                     sleepTimerEndTime = null
+                }
+            }
+
+            // Periodic progress save
+            if (isPlaying) {
+                val now = System.currentTimeMillis()
+                if (now - lastSavedTime >= 3000L) {
+                    mediaController?.let { controller ->
+                        val pos = controller.currentPosition
+                        val dur = controller.duration
+                        if (pos > 0L) {
+                            com.example.data.SettingsManager.getInstance(context).savePlaybackState(decodedUriString, pos, dur, currentMediaTitle)
+                            lastSavedTime = now
+                        }
+                    }
                 }
             }
             
@@ -392,11 +415,8 @@ fun PlayerScreen(
     }
 
     LaunchedEffect(mediaController) {
-        while (true) {
-            if (mediaController != null) {
-                repeatMode = mediaController!!.repeatMode
-            }
-            delay(500)
+        mediaController?.let {
+            repeatMode = it.repeatMode
         }
     }
 
@@ -451,8 +471,8 @@ fun PlayerScreen(
             controller.setMediaItem(initialMediaItem)
             controller.prepare()
             
-            val lastPos = settingsManager.getPlaybackPosition(decodedUriString)
-            if (lastPos > 0 && !settingsManager.isFinished(decodedUriString)) {
+            val lastPos = settingsManager.getPlaybackPosition(decodedUriString, fileName)
+            if (lastPos > 0 && !settingsManager.isFinished(decodedUriString, fileName)) {
                 controller.seekTo(lastPos)
             }
             controller.play()
@@ -824,7 +844,9 @@ fun PlayerScreen(
                 currentController?.let { controller ->
                     val currentPos = controller.currentPosition
                     val dur = controller.duration
-                    com.example.data.SettingsManager.getInstance(context).savePlaybackState(decodedUriString, currentPos, dur)
+                    if (currentPos > 0L) {
+                        com.example.data.SettingsManager.getInstance(context).savePlaybackState(decodedUriString, currentPos, dur, currentMediaTitle)
+                    }
                     
                     val activity = context.findActivity()
                     val isPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) activity?.isInPictureInPictureMode == true else false
@@ -855,7 +877,9 @@ fun PlayerScreen(
                 hoistedMainListener?.let { controller.removeListener(it) }
                 val currentPos = controller.currentPosition
                 val dur = controller.duration
-                com.example.data.SettingsManager.getInstance(context).savePlaybackState(decodedUriString, currentPos, dur)
+                if (currentPos > 0L) {
+                    com.example.data.SettingsManager.getInstance(context).savePlaybackState(decodedUriString, currentPos, dur, currentMediaTitle)
+                }
             }
         }
     }
@@ -1271,6 +1295,13 @@ fun PlayerScreen(
                         ) {
                             IconButton(onClick = {
                                 com.example.LogKeeper.log("Back button clicked in PlayerScreen top bar", "PlayerScreen")
+                                mediaController?.let { controller ->
+                                    val pos = controller.currentPosition
+                                    val dur = controller.duration
+                                    if (pos > 0L) {
+                                        com.example.data.SettingsManager.getInstance(context).savePlaybackState(decodedUriString, pos, dur, currentMediaTitle)
+                                    }
+                                }
                                 if (!backgroundPlayEnabledRef.value && !forceBackgroundPlay.get()) {
                                     mediaController?.let { controller ->
                                         controller.pause()

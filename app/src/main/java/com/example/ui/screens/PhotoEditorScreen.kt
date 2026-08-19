@@ -78,12 +78,31 @@ fun PhotoEditorScreen(uriString: String, onNavigateBack: () -> Unit) {
     LaunchedEffect(uriString) {
         withContext(Dispatchers.IO) {
             try {
-                val inputStream = context.contentResolver.openInputStream(Uri.parse(uriString))
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                inputStream?.close()
-                if (bitmap != null) {
+                val parsedUri = Uri.parse(uriString)
+                val options = BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
+                context.contentResolver.openInputStream(parsedUri)?.use { stream ->
+                    BitmapFactory.decodeStream(stream, null, options)
+                }
+                
+                // Keep max dimension bounded around 2048 to prevent OOM on 3GB RAM devices
+                val maxTargetDim = 2048
+                val maxSourceDim = maxOf(options.outWidth, options.outHeight)
+                var sampleSize = 1
+                while (maxSourceDim / (sampleSize * 2) >= maxTargetDim) {
+                    sampleSize *= 2
+                }
+                options.inSampleSize = sampleSize
+                options.inJustDecodeBounds = false
+
+                var loadedBitmap: Bitmap? = null
+                context.contentResolver.openInputStream(parsedUri)?.use { stream ->
+                    loadedBitmap = BitmapFactory.decodeStream(stream, null, options)
+                }
+                if (loadedBitmap != null) {
                     withContext(Dispatchers.Main) {
-                        imageBitmap = bitmap.asImageBitmap()
+                        imageBitmap = loadedBitmap?.asImageBitmap()
                         cropLeft = 0f
                         cropTop = 0f
                         cropRight = 1f

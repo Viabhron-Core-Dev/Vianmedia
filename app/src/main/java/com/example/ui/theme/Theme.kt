@@ -48,7 +48,7 @@ val TrueBlackColorScheme = darkColorScheme(
 
 @Composable
 fun MyApplicationTheme(
-    themePreference: String = "System Default",
+    themePreference: String = "Light",
     fontPreference: String = "Default",
     content: @Composable () -> Unit
 ) {
@@ -57,7 +57,8 @@ fun MyApplicationTheme(
         "Light" -> LightBlueColorScheme
         "Dark" -> DarkBlueColorScheme
         "True Black" -> TrueBlackColorScheme
-        else -> if (isSystemDark) DarkBlueColorScheme else LightBlueColorScheme
+        "System Default" -> if (isSystemDark) DarkBlueColorScheme else LightBlueColorScheme
+        else -> LightBlueColorScheme
     }
 
     val typography = when (fontPreference) {
